@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Channel G-code Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f4ee;
+    --paper: #ffffff;
+    --panel: #fbf9f3;
+    --panel-2: #f1ede3;
+    --border: #d8d3c4;
+    --border-soft: #e6e1d2;
+    --ink: #1a1a1a;
+    --ink-2: #3d3d3d;
+    --ink-dim: #6b6b6b;
+    --ink-faint: #9a9486;
+    --accent: #d2451e;
+    --accent-soft: #fbe9e2;
+    --good: #2d6a3e;
+    --good-soft: #e3f0e6;
+    --warn: #b54708;
+    --warn-soft: #fdf1e8;
+    --slide: #eef0f2;
+    --slide-edge: #b3b9c0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+/* ============ HEADER ============ */
+header {
+height: 64px;
+padding: 0 28px;
+border-bottom: 1px solid var(–border);
+display: flex;
+justify-content: space-between;
+align-items: center;
+gap: 16px;
+background: var(–paper);
+flex-shrink: 0;
+}
+.brand h1 {
+font-family: ‘Fraunces’, serif;
+font-weight: 400;
+font-size: 22px;
+letter-spacing: -0.01em;
+line-height: 1.1;
+}
+.brand h1 em { font-style: italic; color: var(–accent); font-weight: 300; }
+.brand .subtitle {
+color: var(–ink-dim);
+font-size: 9px;
+letter-spacing: 0.14em;
+text-transform: uppercase;
+margin-top: 2px;
+}
+.conn-bar {
+display: flex;
+align-items: center;
+gap: 10px;
+background: var(–bg);
+border: 1px solid var(–border);
+border-radius: 3px;
+padding: 6px 10px 6px 14px;
+}
+.conn-led {
+width: 9px; height: 9px; border-radius: 50%;
+background: #c5c5c5;
+transition: background 0.2s;
+}
+.conn-led.on {
+background: var(–good);
+box-shadow: 0 0 6px rgba(45, 106, 62, 0.5);
+}
+.conn-led.err { background: var(–accent); }
+.conn-state { font-size: 11px; color: var(–ink-2); min-width: 100px; }
+.conn-bar select {
+background: var(–paper);
+border: 1px solid var(–border);
+border-radius: 2px;
+padding: 5px 8px;
+font-family: inherit;
+font-size: 11px;
+color: var(–ink);
+cursor: pointer;
+}
+.conn-bar .baud-label {
+font-size: 9px;
+text-transform: uppercase;
+letter-spacing: 0.1em;
+color: var(–ink-faint);
+}
+.conn-bar button { padding: 7px 14px; font-size: 11px; }
+
+/* ============ MAIN GRID ============ */
+main {
+display: grid;
+grid-template-columns: 380px 1fr 360px;
+height: calc(100vh - 64px);
+gap: 1px;
+background: var(–border);
+}
+@media (max-width: 1400px) {
+main { grid-template-columns: 340px 1fr 340px; }
+}
+@media (max-width: 1100px) {
+main { grid-template-columns: 320px 1fr; }
+.col-toolhead { display: none; }
+}
+.col {
+background: var(–bg);
+overflow-y: auto;
+display: flex;
+flex-direction: column;
+}
+.col-inner { padding: 18px 20px; }
+
+/* ============ SECTIONS / TYPOGRAPHY ============ */
+h2 {
+font-family: ‘Fraunces’, serif;
+font-weight: 500;
+font-size: 14px;
+margin-bottom: 4px;
+color: var(–ink);
+display: flex;
+align-items: baseline;
+gap: 8px;
+}
+h2 .num { color: var(–accent); font-style: italic; font-size: 13px; }
+p.hint {
+color: var(–ink-dim);
+font-size: 10.5px;
+margin-bottom: 12px;
+line-height: 1.55;
+}
+hr { border: none; border-top: 1px solid var(–border-soft); margin: 16px 0; }
+
+/* ============ INPUTS ============ */
+.field { margin-bottom: 10px; }
+.field label {
+display: block;
+font-size: 9px;
+text-transform: uppercase;
+letter-spacing: 0.12em;
+color: var(–ink-dim);
+margin-bottom: 4px;
+}
+.field label .max {
+color: var(–ink-faint);
+text-transform: none;
+letter-spacing: 0;
+margin-left: 6px;
+}
+.field input[type=“number”], .field input[type=“text”], .field select {
+width: 100%;
+background: var(–paper);
+border: 1px solid var(–border);
+color: var(–ink);
+padding: 7px 10px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 12.5px;
+border-radius: 2px;
+transition: border-color 0.15s;
+}
+.field input:focus, .field select:focus { outline: none; border-color: var(–accent); }
+.field input.invalid { border-color: var(–accent); background: var(–accent-soft); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ============ BUTTONS ============ */
+button {
+font-family: ‘JetBrains Mono’, monospace;
+cursor: pointer;
+border: 1px solid var(–border);
+background: var(–paper);
+color: var(–ink);
+padding: 8px 12px;
+font-size: 11px;
+letter-spacing: 0.04em;
+border-radius: 2px;
+transition: all 0.12s;
+}
+button:hover:not(:disabled) {
+border-color: var(–ink);
+background: var(–panel);
+}
+button.primary {
+background: var(–ink);
+color: var(–paper);
+border-color: var(–ink);
+font-weight: 500;
+}
+button.primary:hover:not(:disabled) {
+background: var(–accent);
+border-color: var(–accent);
+}
+button.accent {
+background: var(–accent);
+color: var(–paper);
+border-color: var(–accent);
+}
+button.accent:hover:not(:disabled) { background: #b13815; border-color: #b13815; }
+button.zero {
+background: transparent;
+border: 1px dashed var(–accent);
+color: var(–accent);
+width: 100%;
+padding: 10px;
+font-size: 10px;
+text-transform: uppercase;
+letter-spacing: 0.15em;
+}
+button.zero:hover { background: var(–accent-soft); border-style: solid; }
+button.zero.set {
+border-style: solid;
+background: var(–good-soft);
+border-color: var(–good);
+color: var(–good);
+}
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ============ CHANNELS LIST ============ */
+.channels-list { margin-top: 4px; max-height: 130px; overflow-y: auto; padding-right: 2px; }
+.channel-row {
+display: grid;
+grid-template-columns: 22px 1fr 28px;
+gap: 6px;
+align-items: center;
+margin-bottom: 4px;
+}
+.channel-row .idx { color: var(–ink-faint); font-size: 10px; text-align: right; }
+.channel-row input {
+background: var(–paper);
+border: 1px solid var(–border);
+color: var(–ink);
+padding: 5px 8px;
+font-family: inherit;
+font-size: 11.5px;
+border-radius: 2px;
+width: 100%;
+}
+.channel-row input:focus { outline: none; border-color: var(–accent); }
+.channel-row .remove {
+background: transparent;
+border: 1px solid var(–border);
+color: var(–ink-faint);
+padding: 4px 0;
+font-size: 12px;
+}
+.channel-row .remove:hover { color: var(–accent); border-color: var(–accent); }
+.add-channel {
+width: 100%;
+margin-top: 4px;
+border-style: dashed;
+color: var(–ink-dim);
+background: transparent;
+font-size: 10.5px;
+padding: 6px;
+}
+.add-channel:hover { color: var(–accent); border-color: var(–accent); }
+
+/* ============ STATS ============ */
+.stats {
+margin-top: 10px;
+padding: 10px 12px;
+background: var(–paper);
+border: 1px solid var(–border-soft);
+border-left: 3px solid var(–accent);
+font-size: 10.5px;
+}
+.stat-row { display: flex; justify-content: space-between; padding: 1px 0; }
+.stat-row .label { color: var(–ink-dim); }
+.stat-row .val { color: var(–ink); font-weight: 500; }
+
+/* ============ PILLS / ALERTS ============ */
+.pill {
+display: inline-block;
+padding: 1px 7px;
+background: var(–accent-soft);
+color: var(–accent);
+font-size: 9.5px;
+border-radius: 10px;
+letter-spacing: 0.04em;
+}
+.pill.dim { background: var(–panel-2); color: var(–ink-dim); }
+.pill.good { background: var(–good-soft); color: var(–good); }
+
+.alert {
+padding: 8px 10px;
+background: var(–warn-soft);
+border-left: 2px solid var(–warn);
+color: var(–warn);
+font-size: 10.5px;
+margin: 8px 0;
+display: none;
+}
+.alert.show { display: block; }
+.alert.good {
+background: var(–good-soft);
+border-left-color: var(–good);
+color: var(–good);
+}
+
+.browser-warn {
+padding: 9px 12px;
+background: var(–warn-soft);
+border: 1px solid var(–warn);
+border-radius: 2px;
+color: var(–warn);
+font-size: 10.5px;
+margin-bottom: 10px;
+display: none;
+}
+.browser-warn.show { display: block; }
+
+/* ============ CENTER COLUMN: PREVIEW + CONSOLE ============ */
+.col-center { display: flex; flex-direction: column; }
+.preview-section {
+flex: 1;
+display: flex;
+flex-direction: column;
+padding: 18px 24px;
+min-height: 0;
+}
+.preview-section h2 { margin-bottom: 2px; }
+.preview-wrap {
+background: var(–paper);
+border: 1px solid var(–border);
+border-radius: 2px;
+overflow: hidden;
+margin-top: 10px;
+flex: 1;
+min-height: 280px;
+display: flex;
+}
+.preview-wrap canvas { display: block; width: 100%; height: 100%; flex: 1; }
+.preview-legend {
+display: flex;
+gap: 18px;
+margin-top: 10px;
+font-size: 9.5px;
+color: var(–ink-dim);
+text-transform: uppercase;
+letter-spacing: 0.1em;
+flex-wrap: wrap;
+}
+.preview-legend .swatch {
+display: inline-block;
+width: 14px; height: 2px;
+margin-right: 6px;
+vertical-align: middle;
+}
+
+.console-section {
+border-top: 1px solid var(–border);
+background: var(–panel);
+padding: 12px 24px 14px;
+flex-shrink: 0;
+}
+.console-header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 6px;
+}
+.console-header h2 { margin: 0; font-size: 13px; }
+.console {
+background: #fafaf6;
+border: 1px solid var(–border);
+border-radius: 2px;
+padding: 7px 10px;
+font-family: inherit;
+font-size: 10.5px;
+height: 100px;
+overflow-y: auto;
+line-height: 1.5;
+}
+.console .ln { white-space: pre-wrap; word-break: break-all; }
+.console .ln.tx { color: var(–ink); }
+.console .ln.tx::before { content: ’> ’; color: var(–accent); font-weight: 600; }
+.console .ln.rx { color: var(–ink-dim); }
+.console .ln.rx::before { content: ’< ’; color: var(–good); font-weight: 600; }
+.console .ln.sys { color: var(–ink-faint); font-style: italic; }
+.send-row { display: flex; gap: 6px; margin-top: 6px; }
+.send-row input {
+flex: 1;
+background: var(–paper);
+border: 1px solid var(–border);
+padding: 6px 9px;
+font-family: inherit;
+font-size: 11.5px;
+border-radius: 2px;
+color: var(–ink);
+}
+.send-row input:focus { outline: none; border-color: var(–accent); }
+
+/* ============ TOOL HEAD COLUMN ============ */
+.col-toolhead { background: var(–panel); }
+.toolhead-inner { padding: 18px 20px; }
+
+/* Position display - prominent at top */
+.pos-card {
+background: var(–paper);
+border: 1px solid var(–border);
+border-radius: 3px;
+padding: 12px 14px;
+margin-bottom: 14px;
+}
+.pos-card .pos-label {
+font-size: 9px;
+text-transform: uppercase;
+letter-spacing: 0.14em;
+color: var(–ink-faint);
+margin-bottom: 8px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+}
+.pos-grid {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 8px;
+}
+.pos-cell {
+background: var(–bg);
+border: 1px solid var(–border-soft);
+border-radius: 2px;
+padding: 8px 10px;
+text-align: center;
+}
+.pos-cell .axis {
+font-size: 9px;
+color: var(–ink-faint);
+text-transform: uppercase;
+letter-spacing: 0.15em;
+margin-bottom: 2px;
+}
+.pos-cell .val {
+font-family: ‘Fraunces’, serif;
+font-size: 18px;
+font-weight: 400;
+color: var(–ink);
+font-feature-settings: “tnum”;
+}
+.pos-cell.z .val { color: var(–accent); }
+
+/* Jog pad */
+.jog-card {
+background: var(–paper);
+border: 1px solid var(–border);
+border-radius: 3px;
+padding: 14px;
+margin-bottom: 14px;
+}
+.jog-row {
+display: flex;
+gap: 12px;
+align-items: flex-start;
+justify-content: center;
+}
+.jog-pad {
+display: grid;
+grid-template-columns: 44px 44px 44px;
+grid-template-rows: 44px 44px 44px;
+gap: 4px;
+}
+.jog-pad button {
+padding: 0;
+font-size: 13px;
+font-weight: 600;
+color: var(–ink-2);
+background: var(–bg);
+border: 1px solid var(–border);
+}
+.jog-pad button:hover:not(:disabled) {
+background: var(–accent-soft);
+color: var(–accent);
+border-color: var(–accent);
+}
+.jog-pad button:active:not(:disabled) {
+transform: scale(0.96);
+}
+.jog-pad .home {
+background: var(–paper);
+font-size: 9.5px;
+color: var(–ink-dim);
+}
+.jog-z {
+display: grid;
+grid-template-rows: 44px 44px 44px;
+gap: 4px;
+}
+.jog-z button {
+width: 56px;
+padding: 0;
+font-size: 12px;
+font-weight: 600;
+background: var(–bg);
+border: 1px solid var(–border);
+}
+.jog-z button:hover:not(:disabled) {
+background: var(–accent-soft);
+color: var(–accent);
+border-color: var(–accent);
+}
+.jog-z button:active:not(:disabled) { transform: scale(0.96); }
+.jog-z .home { background: var(–paper); color: var(–ink-dim); font-size: 9.5px; }
+
+.jog-step-label {
+font-size: 9px;
+text-transform: uppercase;
+letter-spacing: 0.12em;
+color: var(–ink-faint);
+margin: 12px 0 5px;
+}
+.jog-step-row { display: flex; gap: 4px; }
+.jog-step-row button {
+flex: 1;
+padding: 6px 0;
+font-size: 11px;
+background: var(–bg);
+font-weight: 500;
+}
+.jog-step-row button.active {
+background: var(–ink);
+color: var(–paper);
+border-color: var(–ink);
+}
+
+.quick-row {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 4px;
+margin-top: 10px;
+}
+.quick-row button {
+padding: 6px 4px;
+font-size: 10px;
+}
+
+/* Programmable buttons */
+.prog-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 5px;
+margin-top: 6px;
+}
+.prog-btn {
+position: relative;
+padding: 8px 22px 8px 10px;
+text-align: left;
+background: var(–paper);
+border: 1px solid var(–border);
+font-size: 10.5px;
+color: var(–ink);
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+.prog-btn:hover:not(:disabled) {
+border-color: var(–accent);
+color: var(–accent);
+}
+.prog-btn .x {
+position: absolute;
+top: 1px; right: 4px;
+font-size: 13px;
+color: var(–ink-faint);
+line-height: 1;
+padding: 2px 4px;
+border-radius: 2px;
+cursor: pointer;
+}
+.prog-btn .x:hover { color: var(–accent); background: var(–accent-soft); }
+.prog-add {
+grid-column: 1 / -1;
+border-style: dashed;
+color: var(–ink-dim);
+background: transparent;
+text-align: center;
+padding: 7px;
+font-size: 10.5px;
+}
+.prog-add:hover { color: var(–accent); border-color: var(–accent); }
+
+/* ============ G-CODE OUTPUT (left col bottom) ============ */
+.col-left { display: flex; flex-direction: column; }
+.config-section { padding: 18px 20px; flex-shrink: 0; }
+.gcode-section {
+flex: 1;
+border-top: 1px solid var(–border);
+padding: 14px 20px;
+background: var(–panel);
+display: flex;
+flex-direction: column;
+min-height: 240px;
+}
+.gcode-area {
+background: var(–paper);
+border: 1px solid var(–border);
+border-radius: 2px;
+padding: 10px 12px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 10.5px;
+color: var(–ink);
+width: 100%;
+flex: 1;
+min-height: 140px;
+resize: none;
+line-height: 1.55;
+}
+.gcode-area:focus { outline: none; border-color: var(–accent); }
+.actions { display: flex; gap: 5px; margin-top: 8px; }
+.actions button { flex: 1; padding: 8px 4px; font-size: 10.5px; }
+.actions button.run { flex: 1.2; }
+
+/* ============ RUNNER ============ */
+.runner {
+margin-top: 8px;
+padding: 8px 10px;
+background: var(–paper);
+border: 1px solid var(–border);
+border-radius: 2px;
+font-size: 10.5px;
+}
+.runner-header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 4px;
+}
+.progress-bar {
+height: 4px;
+background: var(–bg);
+border-radius: 2px;
+overflow: hidden;
+}
+.progress-fill {
+height: 100%;
+background: var(–accent);
+width: 0%;
+transition: width 0.2s;
+}
+.runner-stats {
+display: flex;
+justify-content: space-between;
+color: var(–ink-dim);
+font-size: 9.5px;
+margin-top: 3px;
+}
+
+/* ============ MODAL ============ */
+.modal-bg {
+position: fixed; inset: 0;
+background: rgba(20,20,20,0.5);
+display: none;
+align-items: center;
+justify-content: center;
+z-index: 100;
+}
+.modal-bg.show { display: flex; }
+.modal {
+background: var(–paper);
+border: 1px solid var(–border);
+border-radius: 4px;
+padding: 22px 24px;
+max-width: 460px;
+width: 90%;
+box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+.modal h3 {
+font-family: ‘Fraunces’, serif;
+font-weight: 500;
+font-size: 18px;
+margin-bottom: 14px;
+}
+.modal textarea {
+width: 100%;
+background: var(–bg);
+border: 1px solid var(–border);
+padding: 10px;
+font-family: inherit;
+font-size: 12px;
+border-radius: 2px;
+height: 120px;
+resize: vertical;
+color: var(–ink);
+}
+.modal textarea:focus { outline: none; border-color: var(–accent); }
+.modal-actions {
+display: flex;
+gap: 8px;
+margin-top: 14px;
+justify-content: flex-end;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(–border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(–ink-faint); }
+</style>
+
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Channel <em>G-code</em> Generator</h1>
+    <div class="subtitle">Parallel Microfluidic Channels &middot; Microscope Slide</div>
+  </div>
+  <div class="conn-bar">
+    <div class="conn-led" id="led"></div>
+    <div class="conn-state" id="connState">Not connected</div>
+    <span class="baud-label">Baud</span>
+    <select id="baudSel" title="Baud rate">
+      <option value="9600" selected>9600</option>
+      <option value="115200">115200</option>
+      <option value="250000">250000</option>
+      <option value="57600">57600</option>
+      <option value="38400">38400</option>
+      <option value="19200">19200</option>
+    </select>
+    <button id="connectBtn" class="primary">Connect Printer</button>
+    <button id="disconnectBtn" disabled>Disconnect</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ LEFT COLUMN: CONFIG + GCODE ============ -->
+
+  <section class="col col-left">
+    <div class="config-section">
+      <div class="browser-warn" id="browserWarn">
+        Direct printer connection requires Chrome or Edge. You can still generate and download G-code in any browser.
+      </div>
+
+```
+  <h2><span class="num">01</span>Reference Z</h2>
+  <p class="hint">Jog the head to the top of the petri dish, then capture the reference. Z=0 is set there.</p>
+  <button id="zeroBtn" class="zero">◇ &nbsp; Set Z = 0 at current position</button>
+  <div id="zeroState" class="alert good">Z origin captured.</div>
+
+  <hr>
+
+  <h2><span class="num">02</span>Channel Geometry</h2>
+  <p class="hint">Slide working area: 70 × 20 mm. Channels run along X axis.</p>
+
+  <div class="row">
+    <div class="field">
+      <label>Length X <span class="max">(≤ 70)</span></label>
+      <input type="number" id="lenX" value="50" min="1" max="70" step="0.1">
+    </div>
+    <div class="field">
+      <label>Print Z <span class="max">mm</span></label>
+      <input type="number" id="zPrint" value="0.3" min="0" max="25" step="0.05">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label>Travel Z <span class="max">mm</span></label>
+      <input type="number" id="zTravel" value="25" min="1" max="50" step="0.5">
+    </div>
+    <div class="field">
+      <label>Feedrate F</label>
+      <input type="number" id="feed" value="1000" min="50" max="5000" step="50">
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Start Y <span class="max">first channel, mm</span></label>
+    <input type="number" id="startY" value="0" min="0" max="20" step="0.1">
+  </div>
+
+  <hr>
+
+  <h2><span class="num">03</span>Channels <span class="pill" id="countPill">1 channel</span></h2>
+  <p class="hint">First channel sits at Start Y. Each row adds another channel offset by spacing along Y.</p>
+
+  <div id="channelsList" class="channels-list"></div>
+  <button class="add-channel" id="addChannel">+ add channel</button>
+
+  <div class="alert" id="yAlert">Y position exceeds 20 mm slide width.</div>
+
+  <div class="stats">
+    <div class="stat-row"><span class="label">Channels</span><span class="val" id="sChan">1</span></div>
+    <div class="stat-row"><span class="label">Y span</span><span class="val" id="sYspan">0.0 mm</span></div>
+    <div class="stat-row"><span class="label">Print travel</span><span class="val" id="sPrint">50.0 mm</span></div>
+  </div>
+</div>
+
+<div class="gcode-section">
+  <h2 style="margin-bottom: 6px;"><span class="num">04</span>G-code Output</h2>
+  <textarea class="gcode-area" id="gcode" spellcheck="false"></textarea>
+  <div class="actions">
+    <button id="generateBtn" class="primary">Generate</button>
+    <button id="copyBtn">Copy</button>
+    <button id="downloadBtn">Save</button>
+    <button id="runBtn" class="accent run" disabled>▶ Send</button>
+  </div>
+  <div class="runner" id="runner" style="display:none;">
+    <div class="runner-header">
+      <strong id="runnerLabel">Streaming…</strong>
+      <button id="stopBtn" style="padding: 3px 8px; font-size:9.5px;">Stop</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
+    <div class="runner-stats">
+      <span id="progLines">0 / 0 lines</span>
+      <span id="progPct">0%</span>
+    </div>
+  </div>
+</div>
+```
+
+  </section>
+
+  <!-- ============ CENTER COLUMN: PREVIEW + CONSOLE ============ -->
+
+  <section class="col col-center">
+    <div class="preview-section">
+      <h2><span class="num">05</span>Preview</h2>
+      <p class="hint">Top-down view of the slide. Solid lines are print passes, dashed are travel returns.</p>
+      <div class="preview-wrap">
+        <canvas id="preview"></canvas>
+      </div>
+      <div class="preview-legend">
+        <span><span class="swatch" style="background: var(--accent);"></span>Print pass</span>
+        <span><span class="swatch" style="background: var(--ink-faint);"></span>Travel</span>
+        <span><span class="swatch" style="background: var(--slide-edge);"></span>Slide 75 × 25</span>
+        <span><span class="swatch" style="background: transparent; border-top: 1px dashed var(--ink-faint); height:0;"></span>Working area 70 × 20</span>
+      </div>
+    </div>
+
+```
+<div class="console-section">
+  <div class="console-header">
+    <h2><span class="num">06</span>Serial Console</h2>
+    <button id="clearLog" style="padding: 4px 10px; font-size: 10px;">Clear</button>
+  </div>
+  <div class="console" id="console"></div>
+  <div class="send-row">
+    <input type="text" id="cmdInput" placeholder="Type G-code and press Enter (e.g. M114, G28, M105)…" disabled>
+    <button id="sendCmdBtn" disabled>Send</button>
+  </div>
+</div>
+```
+
+  </section>
+
+  <!-- ============ RIGHT COLUMN: TOOL HEAD ============ -->
+
+  <section class="col col-toolhead">
+    <div class="toolhead-inner">
+      <h2 style="margin-bottom: 6px;">
+        <span class="num">07</span>Tool Head
+        <span class="pill dim" id="jogStatus" style="margin-left: auto;">Offline</span>
+      </h2>
+      <p class="hint">Manual control. Connect printer to enable.</p>
+
+```
+  <!-- Position readout -->
+  <div class="pos-card">
+    <div class="pos-label">
+      <span>Current position</span>
+      <button data-action="getPos" style="padding: 3px 8px; font-size: 9px;" disabled>Refresh</button>
+    </div>
+    <div class="pos-grid">
+      <div class="pos-cell"><div class="axis">X</div><div class="val" id="posX">—</div></div>
+      <div class="pos-cell"><div class="axis">Y</div><div class="val" id="posY">—</div></div>
+      <div class="pos-cell z"><div class="axis">Z</div><div class="val" id="posZ">—</div></div>
+    </div>
+  </div>
+
+  <!-- Jog pad -->
+  <div class="jog-card">
+    <div class="jog-row">
+      <div class="jog-pad" aria-label="XY jog">
+        <button disabled style="visibility:hidden;"></button>
+        <button class="jog-btn" data-axis="Y" data-dir="1" disabled>Y+</button>
+        <button disabled style="visibility:hidden;"></button>
+        <button class="jog-btn" data-axis="X" data-dir="-1" disabled>X−</button>
+        <button class="home" data-action="homeXY" disabled>⌂ XY</button>
+        <button class="jog-btn" data-axis="X" data-dir="1" disabled>X+</button>
+        <button disabled style="visibility:hidden;"></button>
+        <button class="jog-btn" data-axis="Y" data-dir="-1" disabled>Y−</button>
+        <button disabled style="visibility:hidden;"></button>
+      </div>
+      <div class="jog-z">
+        <button class="jog-btn" data-axis="Z" data-dir="1" disabled>Z+</button>
+        <button class="home" data-action="homeZ" disabled>⌂ Z</button>
+        <button class="jog-btn" data-axis="Z" data-dir="-1" disabled>Z−</button>
+      </div>
+    </div>
+
+    <div class="jog-step-label">Step size (mm)</div>
+    <div class="jog-step-row" id="stepRow">
+      <button data-step="0.1">0.1</button>
+      <button data-step="1" class="active">1</button>
+      <button data-step="5">5</button>
+      <button data-step="10">10</button>
+    </div>
+
+    <div class="jog-step-label">Jog feedrate</div>
+    <input type="number" id="jogFeed" value="1500" min="100" max="6000" step="100" style="width:100%; padding:6px 9px; background:var(--bg); border:1px solid var(--border); border-radius:2px; font-family:inherit; font-size:11.5px; color:var(--ink);">
+
+    <div class="quick-row">
+      <button data-action="homeAll" disabled>Home All</button>
+      <button data-action="motorsOff" disabled>Motors Off</button>
+      <button data-action="setOrigin" disabled>Set Origin</button>
+    </div>
+  </div>
+
+  <h2 style="margin-bottom: 4px;"><span class="num">08</span>Macros</h2>
+  <p class="hint">Custom G-code shortcuts. Saved to this browser.</p>
+  <div class="prog-grid" id="progGrid"></div>
+</div>
+```
+
+  </section>
+
+</main>
+
+<!-- Macro modal -->
+
+<div class="modal-bg" id="progModal">
+  <div class="modal">
+    <h3 id="modalTitle">New macro</h3>
+    <div class="field">
+      <label>Label</label>
+      <input type="text" id="progLabel" placeholder="e.g. Park nozzle">
+    </div>
+    <div class="field">
+      <label>G-code (one command per line)</label>
+      <textarea id="progCode" placeholder="G90&#10;G1 X0 Y0 Z25 F2000"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button id="progCancel">Cancel</button>
+      <button id="progSave" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const state = {
+  zZeroSet: false,
+  spacings: [1.0],
+  jogStep: 1,
+  port: null,
+  reader: null,
+  writer: null,
+  connected: false,
+  rxBuf: '',
+  streaming: false,
+  streamLines: [],
+  streamIdx: 0,
+  awaitingOk: false,
+  progButtons: JSON.parse(localStorage.getItem('progButtons') || 'null') || [
+    { label: 'Park (X0 Y0 Z25)', code: 'G90\nG1 Z25 F1500\nG1 X0 Y0 F2000' },
+    { label: 'Disable steppers', code: 'M84' },
+  ],
+  editingProgIdx: null,
+  pos: { X: null, Y: null, Z: null },
+};
+
+// ============ CHANNELS ============
+function renderChannels() {
+  const list = $('channelsList');
+  list.innerHTML = '';
+  state.spacings.forEach((sp, i) => {
+    const row = document.createElement('div');
+    row.className = 'channel-row';
+    row.innerHTML = `
+      <div class="idx">${(i+2).toString().padStart(2,'0')}</div>
+      <input type="number" min="0.05" max="20" step="0.05" value="${sp}" data-idx="${i}">
+      <button class="remove" data-rm="${i}">&times;</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const idx = +e.target.dataset.idx;
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) state.spacings[idx] = v;
+      updateAll();
+    });
+  });
+  list.querySelectorAll('.remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const idx = +e.target.dataset.rm;
+      state.spacings.splice(idx, 1);
+      renderChannels();
+      updateAll();
+    });
+  });
+}
+$('addChannel').addEventListener('click', () => {
+  state.spacings.push(1.0);
+  renderChannels();
+  updateAll();
+});
+function getYPositions() {
+  const startY = parseFloat($('startY').value) || 0;
+  const ys = [startY];
+  let cur = startY;
+  state.spacings.forEach(sp => {
+    cur += (parseFloat(sp) || 0);
+    ys.push(cur);
+  });
+  return ys;
+}
+
+// ============ STATS ============
+function updateStats() {
+  const ys = getYPositions();
+  const lenX = parseFloat($('lenX').value) || 0;
+  const nChan = ys.length;
+  const ySpan = ys[ys.length-1] - ys[0];
+  const printTravel = lenX * nChan;
+
+  $('sChan').textContent = nChan;
+  $('sYspan').textContent = ySpan.toFixed(2) + ' mm';
+  $('sPrint').textContent = printTravel.toFixed(1) + ' mm';
+  $('countPill').textContent = nChan + (nChan === 1 ? ' channel' : ' channels');
+
+  const yMax = Math.max(...ys), yMin = Math.min(...ys);
+  const xValid = lenX > 0 && lenX <= 70;
+  const yValid = yMax <= 20 && yMin >= 0;
+  $('lenX').classList.toggle('invalid', !xValid);
+  $('yAlert').classList.toggle('show', !yValid);
+}
+
+// ============ PREVIEW ============
+function drawPreview() {
+  const c = $('preview');
+  const ctx = c.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = c.clientWidth || 800;
+  const cssH = c.clientHeight || 400;
+  c.width = cssW * dpr; c.height = cssH * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssW,cssH);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,cssW,cssH);
+
+  const margin = 60;
+  const slideMM_W = 75, slideMM_H = 25;
+  const availW = cssW - margin*2;
+  const availH = cssH - margin*2;
+  const scale = Math.min(availW / slideMM_W, availH / slideMM_H);
+  const slideW = slideMM_W * scale;
+  const slideH = slideMM_H * scale;
+  const ox = (cssW - slideW)/2;
+  const oy = (cssH - slideH)/2;
+  const X = mm => ox + mm * scale;
+  const Y = mm => oy + slideH - mm * scale;
+
+  // Grid 5mm
+  ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= 75; x += 5) {
+    ctx.beginPath(); ctx.moveTo(X(x), oy); ctx.lineTo(X(x), oy + slideH); ctx.stroke();
+  }
+  for (let y = 0; y <= 25; y += 5) {
+    ctx.beginPath(); ctx.moveTo(ox, Y(y)); ctx.lineTo(ox + slideW, Y(y)); ctx.stroke();
+  }
+
+  // Slide
+  ctx.fillStyle = '#eef0f2';
+  ctx.fillRect(ox, oy, slideW, slideH);
+  ctx.strokeStyle = '#b3b9c0';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(ox, oy, slideW, slideH);
+
+  // Working area dashed
+  ctx.setLineDash([4,4]);
+  ctx.strokeStyle = 'rgba(154, 148, 134, 0.7)';
+  ctx.strokeRect(X(0), Y(20), 70*scale, 20*scale);
+  ctx.setLineDash([]);
+
+  // Axis labels
+  ctx.fillStyle = '#9a9486';
+  ctx.font = '11px JetBrains Mono';
+  ctx.fillText('X →', ox + slideW + 8, Y(0) - 2);
+  ctx.fillText('Y ↑', ox - 26, oy + 12);
+  ctx.fillText('0,0', ox - 22, Y(0) + 14);
+  ctx.fillText('75', ox + slideW - 10, oy + slideH + 16);
+  ctx.fillText('25', ox - 22, oy - 4);
+
+  // Channels
+  const ys = getYPositions();
+  const lenX = parseFloat($('lenX').value) || 0;
+  const xStart = 0, xEnd = lenX;
+
+  ys.forEach((yMM, i) => {
+    if (yMM < 0 || yMM > 20 || lenX <= 0 || lenX > 70) return;
+
+    if (i > 0) {
+      const prevY = ys[i-1];
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle = 'rgba(154, 148, 134, 0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(X(xEnd), Y(prevY));
+      ctx.lineTo(X(xStart), Y(yMM));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.strokeStyle = '#d2451e';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(X(xStart), Y(yMM));
+    ctx.lineTo(X(xEnd), Y(yMM));
+    ctx.stroke();
+
+    const ax = X(xEnd), ay = Y(yMM);
+    ctx.fillStyle = '#d2451e';
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - 8, ay - 4);
+    ctx.lineTo(ax - 8, ay + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#6b6b6b';
+    ctx.font = '10.5px JetBrains Mono';
+    ctx.fillText(`#${i+1}  Y=${yMM.toFixed(2)}`, X(xStart) - 50, Y(yMM) + 3);
+  });
+}
+
+// ============ G-CODE GENERATION ============
+function generateGcode() {
+  const lenX = parseFloat($('lenX').value);
+  const zPrint = parseFloat($('zPrint').value);
+  const zTravel = parseFloat($('zTravel').value);
+  const feed = parseFloat($('feed').value);
+  const ys = getYPositions();
+  const yMax = Math.max(...ys), yMin = Math.min(...ys);
+
+  const errs = [];
+  if (!(lenX > 0 && lenX <= 70)) errs.push(`Channel length ${lenX} out of range (0-70 mm)`);
+  if (!(zPrint >= 0 && zPrint < zTravel)) errs.push(`Z print height invalid`);
+  if (!(yMax <= 20 && yMin >= 0)) errs.push(`Y out of range (0-20 mm). Max=${yMax.toFixed(2)}`);
+  if (!state.zZeroSet) errs.push(`Z=0 reference not set yet`);
+
+  const lines = [];
+  const pad = n => Number(n).toFixed(3).replace(/\.?0+$/, '') || '0';
+
+  lines.push('; ============================================');
+  lines.push('; Channel G-code Generator');
+  lines.push(`; Generated ${new Date().toISOString()}`);
+  lines.push(`; Channels: ${ys.length} | Length X: ${pad(lenX)} mm`);
+  lines.push(`; Print Z: ${pad(zPrint)} | Travel Z: ${pad(zTravel)} | F${feed}`);
+  lines.push(`; Y positions: ${ys.map(pad).join(', ')}`);
+  if (errs.length) {
+    lines.push(';');
+    lines.push('; WARNINGS:');
+    errs.forEach(e => lines.push(`;   - ${e}`));
+  }
+  lines.push('; ============================================');
+  lines.push('G21');
+  lines.push('G90');
+  lines.push('G92 Z0');
+  lines.push(`G1 Z${pad(zTravel)} F${feed}`);
+  lines.push('');
+
+  ys.forEach((y, i) => {
+    lines.push(`; Channel ${i+1}/${ys.length} @ Y=${pad(y)}`);
+    lines.push(`G1 X0 Y${pad(y)} F${feed}`);
+    lines.push(`G1 Z${pad(zPrint)} F${feed}`);
+    lines.push(`G1 X${pad(lenX)} F${feed}`);
+    lines.push(`G1 Z${pad(zTravel)} F${feed}`);
+    if (i < ys.length - 1) lines.push(`G1 X0 F${feed}`);
+    lines.push('');
+  });
+
+  lines.push('; Done');
+  lines.push(`G1 Z${pad(zTravel)} F${feed}`);
+  lines.push(`G1 X0 Y0 F${feed}`);
+  lines.push('M84');
+
+  return lines.join('\n');
+}
+
+// ============ SERIAL ============
+const hasSerial = 'serial' in navigator;
+if (!hasSerial) $('browserWarn').classList.add('show');
+
+function logLine(text, cls='sys') {
+  const el = $('console');
+  const d = document.createElement('div');
+  d.className = 'ln ' + cls;
+  d.textContent = text;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+  while (el.children.length > 400) el.removeChild(el.firstChild);
+}
+
+async function connect() {
+  if (!hasSerial) { logLine('Browser does not support direct printer connection.', 'sys'); return; }
+  try {
+    const port = await navigator.serial.requestPort();
+    const baud = parseInt($('baudSel').value);
+    await port.open({ baudRate: baud });
+    state.port = port;
+    state.connected = true;
+
+    const textEncoder = new TextEncoderStream();
+    state._writableClosed = textEncoder.readable.pipeTo(port.writable);
+    state.writer = textEncoder.writable.getWriter();
+
+    const textDecoder = new TextDecoderStream();
+    state._readableClosed = port.readable.pipeTo(textDecoder.writable);
+    state.reader = textDecoder.readable.getReader();
+
+    setConnState(true);
+    logLine(`Connected at ${baud} baud`, 'sys');
+    readLoop();
+  } catch (e) {
+    logLine('Connect error: ' + e.message, 'sys');
+    setConnState(false, true);
+  }
+}
+
+async function readLoop() {
+  try {
+    while (state.connected && state.reader) {
+      const { value, done } = await state.reader.read();
+      if (done) break;
+      if (value) {
+        state.rxBuf += value;
+        let nl;
+        while ((nl = state.rxBuf.indexOf('\n')) >= 0) {
+          const line = state.rxBuf.slice(0, nl).replace(/\r$/, '');
+          state.rxBuf = state.rxBuf.slice(nl + 1);
+          if (line.length) handleRxLine(line);
+        }
+      }
+    }
+  } catch (e) {
+    if (state.connected) logLine('Read error: ' + e.message, 'sys');
+  }
+}
+
+function handleRxLine(line) {
+  logLine(line, 'rx');
+  const m = line.match(/X:(-?\d+\.?\d*)\s+Y:(-?\d+\.?\d*)\s+Z:(-?\d+\.?\d*)/i);
+  if (m) {
+    state.pos.X = parseFloat(m[1]);
+    state.pos.Y = parseFloat(m[2]);
+    state.pos.Z = parseFloat(m[3]);
+    $('posX').textContent = state.pos.X.toFixed(2);
+    $('posY').textContent = state.pos.Y.toFixed(2);
+    $('posZ').textContent = state.pos.Z.toFixed(2);
+  }
+  const lo = line.toLowerCase().trim();
+  if (lo === 'ok' || lo.startsWith('ok ') || lo.startsWith('ok\t')) {
+    if (state.awaitingOk) {
+      state.awaitingOk = false;
+      if (state.streaming) sendNextStreamLine();
+    }
+  }
+}
+
+async function disconnect() {
+  state.connected = false;
+  state.streaming = false;
+  $('runner').style.display = 'none';
+  try {
+    if (state.reader) {
+      try { await state.reader.cancel(); } catch {}
+      try { state.reader.releaseLock(); } catch {}
+    }
+    if (state.writer) {
+      try { await state.writer.close(); } catch {}
+    }
+    if (state.port) {
+      try { await state.port.close(); } catch {}
+    }
+  } catch (e) {
+    logLine('Disconnect error: ' + e.message, 'sys');
+  }
+  state.port = null;
+  state.reader = null;
+  state.writer = null;
+  setConnState(false);
+  logLine('Disconnected', 'sys');
+}
+
+function setConnState(on, err=false) {
+  $('led').className = 'conn-led' + (on ? ' on' : '') + (err ? ' err' : '');
+  $('connState').textContent = on ? 'Connected' : (err ? 'Connection error' : 'Not connected');
+  $('connectBtn').disabled = on;
+  $('disconnectBtn').disabled = !on;
+  $('cmdInput').disabled = !on;
+  $('sendCmdBtn').disabled = !on;
+  $('runBtn').disabled = !on;
+  $('jogStatus').textContent = on ? 'Ready' : 'Offline';
+  $('jogStatus').className = 'pill ' + (on ? 'good' : 'dim');
+  document.querySelectorAll('.jog-btn').forEach(b => b.disabled = !on);
+  document.querySelectorAll('[data-action]').forEach(b => b.disabled = !on);
+  document.querySelectorAll('.prog-btn:not(.prog-add)').forEach(b => b.disabled = !on);
+}
+
+async function sendRaw(text) {
+  if (!state.writer || !state.connected) return;
+  try { await state.writer.write(text); }
+  catch (e) { logLine('Write error: ' + e.message, 'sys'); }
+}
+
+async function sendLine(line) {
+  if (!state.connected) { logLine('(not connected) ' + line, 'sys'); return; }
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith(';')) return;
+  logLine(trimmed, 'tx');
+  await sendRaw(trimmed + '\n');
+}
+
+// ============ JOG ============
+$('stepRow').addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') return;
+  $('stepRow').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  state.jogStep = parseFloat(e.target.dataset.step);
+});
+
+document.querySelectorAll('.jog-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!state.connected) return;
+    const axis = btn.dataset.axis;
+    const dir = parseInt(btn.dataset.dir);
+    const dist = state.jogStep * dir;
+    const f = parseInt($('jogFeed').value) || 1500;
+    await sendLine('G91');
+    await sendLine(`G1 ${axis}${dist} F${f}`);
+    await sendLine('G90');
+    await sendLine('M114');
+  });
+});
+
+document.querySelectorAll('[data-action]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!state.connected) return;
+    const a = btn.dataset.action;
+    if (a === 'homeXY') await sendLine('G28 X Y');
+    else if (a === 'homeZ') await sendLine('G28 Z');
+    else if (a === 'homeAll') await sendLine('G28');
+    else if (a === 'getPos') await sendLine('M114');
+    else if (a === 'motorsOff') await sendLine('M84');
+    else if (a === 'setOrigin') {
+      if (confirm('Set current X, Y, Z all to 0 (G92 X0 Y0 Z0)?')) {
+        await sendLine('G92 X0 Y0 Z0');
+        await sendLine('M114');
+      }
+    }
+  });
+});
+
+// ============ MACROS ============
+function renderProgButtons() {
+  const grid = $('progGrid');
+  grid.innerHTML = '';
+  state.progButtons.forEach((b, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'prog-btn';
+    btn.disabled = !state.connected;
+    btn.title = b.code;
+    btn.innerHTML = `${escapeHtml(b.label)}<span class="x" data-rm="${i}">&times;</span>`;
+    btn.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('x')) {
+        e.stopPropagation();
+        if (confirm('Delete "' + b.label + '"?')) {
+          state.progButtons.splice(i, 1);
+          saveProgButtons();
+          renderProgButtons();
+        }
+        return;
+      }
+      if (!state.connected) return;
+      const lines = b.code.split('\n');
+      for (const ln of lines) await sendLine(ln);
+    });
+    grid.appendChild(btn);
+  });
+  const add = document.createElement('button');
+  add.className = 'prog-btn prog-add';
+  add.textContent = '+ add macro';
+  add.addEventListener('click', () => openProgModal());
+  grid.appendChild(add);
+}
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function saveProgButtons() {
+  localStorage.setItem('progButtons', JSON.stringify(state.progButtons));
+}
+function openProgModal(idx=null) {
+  state.editingProgIdx = idx;
+  if (idx !== null) {
+    $('modalTitle').textContent = 'Edit macro';
+    $('progLabel').value = state.progButtons[idx].label;
+    $('progCode').value = state.progButtons[idx].code;
+  } else {
+    $('modalTitle').textContent = 'New macro';
+    $('progLabel').value = '';
+    $('progCode').value = '';
+  }
+  $('progModal').classList.add('show');
+}
+$('progCancel').addEventListener('click', () => $('progModal').classList.remove('show'));
+$('progSave').addEventListener('click', () => {
+  const label = $('progLabel').value.trim();
+  const code = $('progCode').value.trim();
+  if (!label || !code) return;
+  if (state.editingProgIdx !== null) {
+    state.progButtons[state.editingProgIdx] = { label, code };
+  } else {
+    state.progButtons.push({ label, code });
+  }
+  saveProgButtons();
+  renderProgButtons();
+  $('progModal').classList.remove('show');
+});
+
+// ============ STREAMING ============
+async function sendNextStreamLine() {
+  if (!state.streaming) return;
+  while (state.streamIdx < state.streamLines.length) {
+    const raw = state.streamLines[state.streamIdx];
+    const trimmed = raw.trim();
+    state.streamIdx++;
+    updateProgress();
+    if (!trimmed || trimmed.startsWith(';')) continue;
+    const semi = trimmed.indexOf(';');
+    const cmd = (semi >= 0 ? trimmed.slice(0, semi) : trimmed).trim();
+    if (!cmd) continue;
+    logLine(cmd, 'tx');
+    state.awaitingOk = true;
+    await sendRaw(cmd + '\n');
+    return;
+  }
+  state.streaming = false;
+  state.awaitingOk = false;
+  $('runnerLabel').textContent = 'Done';
+  setTimeout(() => $('runner').style.display = 'none', 2500);
+}
+function updateProgress() {
+  const total = state.streamLines.length;
+  const done = state.streamIdx;
+  const pct = total ? Math.round(done/total*100) : 0;
+  $('progFill').style.width = pct + '%';
+  $('progLines').textContent = `${done} / ${total} lines`;
+  $('progPct').textContent = pct + '%';
+}
+$('runBtn').addEventListener('click', async () => {
+  if (!state.connected) return;
+  const text = $('gcode').value || generateGcode();
+  $('gcode').value = text;
+  if (!confirm('Send this G-code to the printer now?')) return;
+  state.streamLines = text.split('\n');
+  state.streamIdx = 0;
+  state.streaming = true;
+  $('runner').style.display = 'block';
+  $('runnerLabel').textContent = 'Streaming…';
+  updateProgress();
+  sendNextStreamLine();
+});
+$('stopBtn').addEventListener('click', async () => {
+  state.streaming = false;
+  state.awaitingOk = false;
+  $('runnerLabel').textContent = 'Stopped';
+  await sendLine('G91');
+  await sendLine('G1 Z5 F1500');
+  await sendLine('G90');
+});
+
+// ============ MAIN HANDLERS ============
+$('connectBtn').addEventListener('click', connect);
+$('disconnectBtn').addEventListener('click', disconnect);
+$('sendCmdBtn').addEventListener('click', () => {
+  const v = $('cmdInput').value.trim();
+  if (v) { sendLine(v); $('cmdInput').value = ''; }
+});
+$('cmdInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') $('sendCmdBtn').click();
+});
+$('clearLog').addEventListener('click', () => $('console').innerHTML = '');
+
+$('zeroBtn').addEventListener('click', async () => {
+  state.zZeroSet = true;
+  $('zeroBtn').classList.add('set');
+  $('zeroBtn').textContent = '✓  Z = 0 captured (click to re-arm)';
+  $('zeroState').classList.add('show');
+  if (state.connected) {
+    if (confirm('Also send G92 Z0 to the printer right now?')) {
+      await sendLine('G92 Z0');
+      await sendLine('M114');
+    }
+  }
+});
+
+$('generateBtn').addEventListener('click', () => { $('gcode').value = generateGcode(); });
+$('copyBtn').addEventListener('click', async () => {
+  const text = $('gcode').value || generateGcode();
+  $('gcode').value = text;
+  try {
+    await navigator.clipboard.writeText(text);
+    $('copyBtn').textContent = 'Copied ✓';
+    setTimeout(()=> $('copyBtn').textContent = 'Copy', 1200);
+  } catch {
+    $('gcode').select();
+    document.execCommand('copy');
+  }
+});
+$('downloadBtn').addEventListener('click', () => {
+  const text = $('gcode').value || generateGcode();
+  const blob = new Blob([text], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `channels_${Date.now()}.gcode`; a.click();
+  URL.revokeObjectURL(url);
+});
+
+['lenX','zPrint','zTravel','feed','startY'].forEach(id => {
+  $(id).addEventListener('input', updateAll);
+});
+window.addEventListener('resize', drawPreview);
+
+function updateAll() { updateStats(); drawPreview(); }
+
+// ============ INIT ============
+renderChannels();
+renderProgButtons();
+updateAll();
+$('gcode').value = generateGcode();
+setConnState(false);
+logLine('Channel G-code Generator ready. Plug in printer and press Connect Printer (default 9600 baud).', 'sys');
+if (!hasSerial) logLine('Browser does not support direct connection. Use Chrome or Edge.', 'sys');
+
+// Redraw preview after layout settles
+setTimeout(drawPreview, 50);
+</script>
+
+</body>
+</html>
