@@ -1,1767 +1,1478 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="color-scheme" content="light">
-<title>Channel G-code Generator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Saturday · BBQ & Boat</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* ============================================================
-     DESIGN TOKENS — single source of truth
-     ============================================================ */
-  :root {
-    /* Colors */
-    --bg:          #f4f3ee;
-    --paper:       #ffffff;
-    --panel:       #ebe9e0;
-    --border:      #d4d0c2;
-    --border-soft: #e2dfd0;
-    --ink:         #14171a;
-    --ink-2:       #3a3d42;
-    --ink-dim:     #6c6f74;
-    --ink-faint:   #9b9890;
-    --accent:      #c14318;
-    --accent-soft: #f8e2d8;
-    --good:        #2c6b3f;
-    --good-soft:   #dfeee3;
-    --warn:        #b04a08;
-    --warn-soft:   #fceadb;
-    --slide-fill:  #eaedf0;
-    --slide-edge:  #aab1b8;
-
-```
-/* Type scale */
---t-xs:   11px;
---t-sm:   12px;
---t-base: 13px;
---t-md:   14px;
---t-lg:   16px;
---t-xl:   20px;
---t-2xl:  26px;
---t-3xl:  32px;
-
-/* Spacing scale */
---s-1:  4px;
---s-2:  8px;
---s-3:  12px;
---s-4:  16px;
---s-5:  20px;
---s-6:  24px;
---s-8:  32px;
-
-/* Fonts — robust fallback stacks so the page looks correct
-   even if Google Fonts is blocked, slow, or fails to load
-   (e.g. GitHub Pages with strict network conditions). */
---font-ui:   'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
---font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, 'Courier New', monospace;
-
-/* Heights */
---h-header: 60px;
---h-footer: 28px;
-```
-
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f2ec;
+  --card: #ffffff;
+  --border: #e0dbd0;
+  --text: #1a1a1a;
+  --muted: #888;
+  --boat: #2563eb;
+  --fire: #d84e1a;
+  --check: #1a9e6e;
+  --tag-bg: #eef2ff;
+  --tag-text: #2563eb;
+  --danger: #dc2626;
+  --warning-bg: #fff8f0;
+  --warning-border: #fde4c8;
+  --warning-text: #a05c1a;
 }
-
-- { box-sizing: border-box; margin: 0; padding: 0; }
-
-html, body {
-background: var(–bg);
-color: var(–ink);
-color-scheme: light;
-font-family: var(–font-ui);
-font-size: var(–t-base);
-line-height: 1.5;
-height: 100vh;
-overflow: hidden;
--webkit-font-smoothing: antialiased;
--moz-osx-font-smoothing: grayscale;
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 0 0 100px;
+  -webkit-tap-highlight-color: transparent;
 }
-
-/* ============================================================
-HEADER
-============================================================ */
 header {
-height: var(–h-header);
-padding: 0 var(–s-6);
-border-bottom: 1px solid var(–border);
-display: flex;
-justify-content: space-between;
-align-items: center;
-gap: var(–s-4);
-background: var(–paper);
-flex-shrink: 0;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 20px 14px;
+  position: sticky; top: 0; z-index: 10;
 }
-.brand h1 {
-font-family: var(–font-ui);
-font-weight: 600;
-font-size: var(–t-lg);
-letter-spacing: -0.01em;
-line-height: 1.1;
-color: var(–ink);
+header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+header p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+.tabs {
+  display: flex;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-.brand h1 span { color: var(–accent); }
-.brand .subtitle {
-color: var(–ink-dim);
-font-size: var(–t-xs);
-margin-top: 2px;
-font-weight: 400;
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 10px 12px;
+  font-size: 13px; font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  background: none; border-top: none; border-left: none; border-right: none;
+  font-family: 'DM Sans', sans-serif;
+  transition: color 0.15s, border-color 0.15s;
 }
-.conn-bar {
-display: flex;
-align-items: center;
-gap: var(–s-3);
-background: var(–bg);
-border: 1px solid var(–border);
-border-radius: 4px;
-padding: 6px var(–s-3);
+.tab.active { color: var(--text); border-bottom-color: var(--text); }
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* sync status */
+.sync-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 16px;
+  font-size: 11px; color: var(--muted);
+  background: var(--bg);
 }
-.conn-led {
-width: 8px; height: 8px;
-border-radius: 50%;
-background: #c5c5c5;
-transition: background 0.2s, box-shadow 0.2s;
+.sync-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
 }
-.conn-led.on {
-background: var(–good);
-box-shadow: 0 0 0 3px rgba(44, 107, 63, 0.18);
+.sync-dot.ok { background: var(--check); }
+.sync-dot.err { background: var(--danger); }
+.sync-dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* timeline */
+.timeline {
+  display: flex; gap: 8px;
+  padding: 12px 16px;
+  overflow-x: auto; scrollbar-width: none;
 }
-.conn-led.err { background: var(–accent); }
-.conn-state {
-font-size: var(–t-sm);
-color: var(–ink-2);
-min-width: 100px;
-font-weight: 500;
+.timeline::-webkit-scrollbar { display: none; }
+.tcard {
+  flex: 0 0 138px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px;
 }
-.conn-bar .baud-group {
-display: flex;
-align-items: center;
-gap: 6px;
-font-size: var(–t-xs);
-color: var(–ink-dim);
+.tcard.boat { border-top: 3px solid var(--boat); }
+.tcard.fire { border-top: 3px solid var(--fire); }
+.tcard .tc-time { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.tcard .tc-label { font-size: 14px; font-weight: 600; }
+.tcard .tc-note { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* progress */
+.progress-bar-wrap { padding: 0 16px 8px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.progress-bar { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--check); border-radius: 99px; transition: width 0.3s ease; }
+
+/* section heads */
+.section-head {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); padding: 10px 16px 6px;
 }
-.conn-bar select {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-padding: 5px 8px;
-font-family: var(–font-ui);
-font-size: var(–t-sm);
-color: var(–ink);
-cursor: pointer;
-font-weight: 500;
+.list { padding: 0 14px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.list:first-child { margin-top: 10px; }
+
+/* shopping items */
+.item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 12px 11px 14px;
+  transition: opacity 0.15s; user-select: none;
+}
+.item.checked { opacity: 0.42; }
+.item.checked .item-name { text-decoration: line-through; color: var(--muted); }
+.check-area { display: flex; align-items: center; cursor: pointer; }
+.check-circle {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.item.checked .check-circle { background: var(--check); border-color: var(--check); }
+.checkmark {
+  display: none; width: 10px; height: 7px;
+  border-left: 2px solid white; border-bottom: 2px solid white;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.item.checked .checkmark { display: block; }
+.item-info { flex: 1; min-width: 0; cursor: pointer; }
+.item-name { font-size: 14px; font-weight: 500; }
+.item-qty { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.item-tag {
+  font-size: 10px; font-weight: 600; padding: 2px 8px;
+  border-radius: 99px; background: var(--tag-bg); color: var(--tag-text);
+  white-space: nowrap; flex-shrink: 0;
+}
+.item-tag.store { background: #f0fdf4; color: #166534; }
+.item-tag.walmart { background: #eff6ff; color: #1d4ed8; }
+.item-tag.pantry { background: #f3f3f0; color: var(--muted); }
+.item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.btn-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 14px; color: var(--muted);
+}
+.btn-icon.del { color: var(--danger); }
+
+/* note bar */
+.note {
+  margin: 8px 16px 0;
+  background: var(--warning-bg); border: 1px solid var(--warning-border);
+  border-radius: 10px; padding: 10px 14px;
+  font-size: 12px; color: var(--warning-text); line-height: 1.6;
 }
 
-/* ============================================================
-LAYOUT
-============================================================ */
-main {
-display: grid;
-grid-template-columns: 360px 1fr 340px;
-height: calc(100vh - var(–h-header) - var(–h-footer));
-gap: 1px;
-background: var(–border);
+/* info card */
+.info-card {
+  margin: 10px 16px 0;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px;
 }
-@media (max-width: 1400px) {
-main { grid-template-columns: 340px 1fr 320px; }
-}
-@media (max-width: 1100px) {
-main { grid-template-columns: 320px 1fr; }
-.col-toolhead { display: none; }
-}
-.col {
-background: var(–bg);
-overflow-y: auto;
-display: flex;
-flex-direction: column;
-min-width: 0;
+.info-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.info-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.badge {
+  font-size: 11px; font-weight: 500; padding: 3px 9px;
+  border-radius: 99px; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text);
 }
 
-/* ============================================================
-TYPOGRAPHY (consistent scale)
-============================================================ */
-h2 {
-font-family: var(–font-ui);
-font-weight: 600;
-font-size: var(–t-md);
-color: var(–ink);
-display: flex;
-align-items: center;
-gap: var(–s-2);
-margin-bottom: var(–s-1);
+/* ---- BOAT TAB ---- */
+.boat-section { padding: 12px 16px 0; }
+.boat-type-cards { display: flex; gap: 8px; margin-bottom: 14px; }
+.boat-card {
+  flex: 1; background: var(--card); border: 2px solid var(--border);
+  border-radius: 12px; padding: 14px 12px; text-align: center;
+  cursor: pointer; transition: border-color 0.15s;
 }
-h2 .num {
-color: var(–accent);
-font-weight: 600;
-font-size: var(–t-sm);
-font-family: var(–font-mono);
+.boat-card.selected { border-color: var(--boat); background: #f0f5ff; }
+.boat-card .bc-emoji { font-size: 26px; margin-bottom: 6px; }
+.boat-card .bc-name { font-size: 13px; font-weight: 600; }
+.boat-card .bc-cap { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.boat-card .bc-price { font-size: 11px; color: var(--boat); margin-top: 3px; font-weight: 500; }
+
+.slots-wrap {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden; margin-bottom: 12px;
 }
-p.hint {
-color: var(–ink-dim);
-font-size: var(–t-sm);
-margin-bottom: var(–s-3);
-line-height: 1.5;
+.slots-head {
+  padding: 10px 14px; background: #faf9f6;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
 }
-hr {
-border: none;
-border-top: 1px solid var(–border-soft);
-margin: var(–s-4) 0;
+.slots-head span { font-size: 13px; font-weight: 600; }
+.slots-head small { font-size: 11px; color: var(--muted); }
+.slot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
 }
-label {
-display: block;
-font-size: var(–t-xs);
-font-weight: 500;
-color: var(–ink-dim);
-margin-bottom: 5px;
-letter-spacing: 0.01em;
+.slot:last-child { border-bottom: none; }
+.slot-num { font-size: 12px; color: var(--muted); width: 20px; flex-shrink: 0; }
+.slot-name { flex: 1; font-size: 14px; font-weight: 500; }
+.slot-name.empty { color: var(--muted); font-weight: 400; font-style: italic; }
+.slot-actions { display: flex; gap: 5px; }
+
+.bbq-only-wrap {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden; margin-bottom: 12px;
 }
-label .max {
-color: var(–ink-faint);
-font-weight: 400;
-margin-left: 6px;
+.bbq-only-head {
+  padding: 10px 14px; background: #fff8f5;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.bbq-only-head span { font-size: 13px; font-weight: 600; }
+.bbq-person {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+}
+.bbq-person:last-child { border-bottom: none; }
+.bbq-person-name { flex: 1; font-size: 14px; font-weight: 500; }
+
+/* ---- BRINGING TAB ---- */
+.bringing-section { padding: 12px 16px 0; }
+.bringing-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden; margin-bottom: 10px;
+}
+.bringing-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-bottom: 1px solid var(--border);
+}
+.bringing-item:last-child { border-bottom: none; }
+.bringing-info { flex: 1; min-width: 0; }
+.bringing-name { font-size: 14px; font-weight: 500; }
+.bringing-what { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+/* ---- MANAGE TAB ---- */
+.manage-section { padding: 14px 16px 0; }
+.manage-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden; margin-bottom: 12px;
+}
+.manage-cat-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  background: #faf9f6;
+}
+.manage-cat-name { font-size: 13px; font-weight: 600; }
+.manage-cat-actions { display: flex; gap: 6px; }
+.manage-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+}
+.manage-item:last-child { border-bottom: none; }
+.manage-item-info { flex: 1; min-width: 0; }
+.manage-item-name { font-size: 13px; font-weight: 500; }
+.manage-item-qty { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.manage-item-actions { display: flex; gap: 5px; }
+
+.btn-sm {
+  padding: 6px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+  color: var(--text); cursor: pointer;
+}
+.btn-sm.primary { background: var(--text); color: white; border-color: var(--text); }
+.btn-sm.danger { color: var(--danger); border-color: #fca5a5; background: #fff5f5; }
+
+.add-cat-row { margin: 0 0 16px; display: flex; gap: 8px; }
+.add-cat-row input {
+  flex: 1; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px;
+  background: var(--card); color: var(--text); outline: none;
 }
 
-/* ============================================================
-INPUTS — uniform
-============================================================ */
-input[type=“number”], input[type=“text”], select, textarea {
-width: 100%;
-background: var(–paper);
-border: 1px solid var(–border);
-color: var(–ink);
-padding: 8px 10px;
-font-family: var(–font-mono);
-font-size: var(–t-sm);
-border-radius: 3px;
-transition: border-color 0.12s, box-shadow 0.12s;
-}
-input:focus, select:focus, textarea:focus {
-outline: none;
-border-color: var(–accent);
-box-shadow: 0 0 0 2px var(–accent-soft);
-}
-input.invalid {
-border-color: var(–accent);
-background: var(–accent-soft);
-}
-
-.field { margin-bottom: var(–s-3); }
-.row { display: grid; grid-template-columns: 1fr 1fr; gap: var(–s-2); }
-
-/* ============================================================
-BUTTONS — single uniform system
-============================================================ */
-button {
-font-family: var(–font-ui);
-font-weight: 500;
-cursor: pointer;
-border: 1px solid var(–border);
-background: var(–paper);
-color: var(–ink);
-padding: 8px 12px;
-font-size: var(–t-sm);
-border-radius: 3px;
-transition: all 0.12s;
-height: 34px;
-display: inline-flex;
-align-items: center;
-justify-content: center;
-gap: 6px;
-white-space: nowrap;
-}
-button:hover:not(:disabled) {
-border-color: var(–ink);
-background: var(–paper);
-}
-button:active:not(:disabled) { transform: scale(0.98); }
-button:disabled {
-opacity: 0.45;
-cursor: not-allowed;
-}
-button.primary {
-background: var(–ink);
-color: var(–paper);
-border-color: var(–ink);
-font-weight: 600;
-}
-button.primary:hover:not(:disabled) {
-background: var(–ink-2);
-border-color: var(–ink-2);
-}
-button.accent {
-background: var(–accent);
-color: var(–paper);
-border-color: var(–accent);
-font-weight: 600;
-}
-button.accent:hover:not(:disabled) {
-background: #a4360f;
-border-color: #a4360f;
-}
-button.ghost-accent {
-background: transparent;
-border: 1px dashed var(–accent);
-color: var(–accent);
-width: 100%;
-font-weight: 500;
-}
-button.ghost-accent:hover:not(:disabled) {
-background: var(–accent-soft);
-border-style: solid;
-}
-button.ghost-accent.active {
-border-style: solid;
-background: var(–good-soft);
-border-color: var(–good);
-color: var(–good);
-}
-button.small {
-padding: 4px 10px;
-font-size: var(–t-xs);
-height: 26px;
-}
-
-/* ============================================================
-LEFT COLUMN
-============================================================ */
-.col-left { display: flex; flex-direction: column; }
-.config-section {
-padding: var(–s-5) var(–s-5);
-flex: 1;
-overflow-y: auto;
-}
-
-.channels-list {
-margin-top: var(–s-1);
-max-height: 140px;
-overflow-y: auto;
-}
-.channel-row {
-display: grid;
-grid-template-columns: 24px 1fr 32px;
-gap: 6px;
-align-items: center;
-margin-bottom: 5px;
-}
-.channel-row .idx {
-color: var(–ink-faint);
-font-size: var(–t-xs);
-font-family: var(–font-mono);
-text-align: right;
-}
-.channel-row input { padding: 6px 9px; }
-.channel-row .remove {
-background: transparent;
-border: 1px solid var(–border);
-color: var(–ink-faint);
-padding: 0;
-height: 30px;
-font-size: 16px;
-line-height: 1;
-}
-.channel-row .remove:hover {
-color: var(–accent);
-border-color: var(–accent);
-}
-.add-channel {
-width: 100%;
-margin-top: var(–s-1);
-border-style: dashed;
-color: var(–ink-dim);
-background: transparent;
-}
-.add-channel:hover:not(:disabled) {
-color: var(–accent);
-border-color: var(–accent);
-}
-
-.stats {
-margin-top: var(–s-3);
-padding: var(–s-3);
-background: var(–paper);
-border: 1px solid var(–border-soft);
-border-left: 3px solid var(–accent);
-border-radius: 0 3px 3px 0;
-font-size: var(–t-sm);
-}
-.stat-row {
-display: flex;
-justify-content: space-between;
-padding: 2px 0;
-}
-.stat-row .label { color: var(–ink-dim); }
-.stat-row .val {
-color: var(–ink);
-font-weight: 600;
-font-family: var(–font-mono);
-}
-
-.pill {
-display: inline-block;
-padding: 2px 9px;
-background: var(–accent-soft);
-color: var(–accent);
-font-size: var(–t-xs);
-border-radius: 10px;
-font-weight: 500;
-}
-.pill.dim { background: var(–panel); color: var(–ink-dim); }
-.pill.good { background: var(–good-soft); color: var(–good); }
-
-.alert {
-padding: 10px 12px;
-background: var(–warn-soft);
-border-left: 2px solid var(–warn);
-color: var(–warn);
-font-size: var(–t-sm);
-margin: var(–s-2) 0;
-display: none;
-border-radius: 0 3px 3px 0;
-}
-.alert.show { display: block; }
-.alert.good {
-background: var(–good-soft);
-border-left-color: var(–good);
-color: var(–good);
-}
-
-.browser-warn {
-padding: 10px 12px;
-background: var(–warn-soft);
-border: 1px solid var(–warn);
-border-radius: 3px;
-color: var(–warn);
-font-size: var(–t-sm);
-margin-bottom: var(–s-3);
-display: none;
-}
-.browser-warn.show { display: block; }
-
-/* G-code section */
-.gcode-section {
-border-top: 1px solid var(–border);
-padding: var(–s-4) var(–s-5);
-background: var(–panel);
-flex-shrink: 0;
-display: flex;
-flex-direction: column;
-height: 360px;
-}
-textarea.gcode-area {
-flex: 1;
-padding: 10px 12px;
-font-family: var(–font-mono);
-font-size: var(–t-xs);
-line-height: 1.55;
-resize: none;
-margin-top: var(–s-2);
-min-height: 0;
-}
-.actions {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr 1.2fr;
-gap: var(–s-1);
-margin-top: var(–s-2);
-}
-
-/* Runner */
-.runner {
-margin-top: var(–s-2);
-padding: 10px 12px;
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-font-size: var(–t-sm);
-}
-.runner-header {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-bottom: 5px;
-font-weight: 500;
-}
-.progress-bar {
-height: 4px;
-background: var(–bg);
-border-radius: 2px;
-overflow: hidden;
-}
-.progress-fill {
-height: 100%;
-background: var(–accent);
-width: 0%;
-transition: width 0.2s;
-}
-.runner-stats {
-display: flex;
-justify-content: space-between;
-color: var(–ink-dim);
-font-size: var(–t-xs);
-margin-top: 4px;
-font-family: var(–font-mono);
-}
-
-/* ============================================================
-CENTER COLUMN
-============================================================ */
-.col-center { display: flex; flex-direction: column; }
-.preview-section {
-padding: var(–s-5) var(–s-6);
-display: flex;
-flex-direction: column;
-flex: 1;
-min-height: 0;
-}
-.preview-wrap {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-overflow: hidden;
-margin-top: var(–s-3);
-flex: 1;
-min-height: 280px;
-position: relative;
-}
-.preview-wrap canvas {
-display: block;
-width: 100%;
-height: 100%;
-}
-.preview-legend {
-display: flex;
-gap: var(–s-5);
-margin-top: var(–s-3);
-font-size: var(–t-xs);
-color: var(–ink-dim);
-flex-wrap: wrap;
-}
-.preview-legend > span {
-display: inline-flex;
-align-items: center;
-gap: 6px;
-}
-.swatch {
-display: inline-block;
-width: 16px;
-height: 2px;
-background: var(–ink);
-}
-.swatch.print { background: var(–accent); height: 2px; }
-.swatch.travel {
-border-top: 1.5px dashed var(–ink-faint);
-background: transparent;
-height: 0;
-}
-.swatch.slide {
-background: var(–slide-fill);
-border: 1px solid var(–slide-edge);
-height: 10px;
-width: 16px;
-}
-.swatch.work {
-border: 1.5px dashed var(–ink-faint);
-background: transparent;
-height: 10px;
-width: 16px;
-}
-
-/* Console section */
-.console-section {
-border-top: 1px solid var(–border);
-background: var(–panel);
-padding: var(–s-3) var(–s-6) var(–s-4);
-flex-shrink: 0;
-height: 220px;
-display: flex;
-flex-direction: column;
-}
-.console-header {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-bottom: var(–s-2);
-}
-.console-header h2 { margin: 0; }
-.console {
-background: #fafaf6;
-border: 1px solid var(–border);
-border-radius: 3px;
-padding: 8px 10px;
-font-family: var(–font-mono);
-font-size: var(–t-xs);
-flex: 1;
-overflow-y: auto;
-line-height: 1.55;
-min-height: 0;
-}
-.console .ln {
-white-space: pre-wrap;
-word-break: break-all;
-}
-.console .ln.tx { color: var(–ink); }
-.console .ln.tx::before { content: ’> ’; color: var(–accent); font-weight: 600; }
-.console .ln.rx { color: var(–ink-dim); }
-.console .ln.rx::before { content: ’< ’; color: var(–good); font-weight: 600; }
-.console .ln.sys { color: var(–ink-faint); font-style: italic; }
-.send-row {
-display: flex;
-gap: var(–s-2);
-margin-top: var(–s-2);
-}
-.send-row input { flex: 1; }
-
-/* ============================================================
-RIGHT COLUMN — TOOL HEAD
-============================================================ */
-.col-toolhead {
-background: var(–panel);
-}
-.toolhead-inner { padding: var(–s-5); }
-
-.pos-card {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-padding: var(–s-3) var(–s-4);
-margin-bottom: var(–s-4);
-}
-.pos-card .pos-label {
-font-size: var(–t-xs);
-color: var(–ink-dim);
-margin-bottom: var(–s-2);
-display: flex;
-justify-content: space-between;
-align-items: center;
-font-weight: 500;
-}
-.pos-grid {
-display: grid;
-grid-template-columns: repeat(3, 1fr);
-gap: var(–s-2);
-}
-.pos-cell {
-background: var(–bg);
-border: 1px solid var(–border-soft);
-border-radius: 3px;
-padding: 8px 10px;
-text-align: center;
-}
-.pos-cell .axis {
-font-size: var(–t-xs);
-color: var(–ink-faint);
-font-family: var(–font-mono);
-font-weight: 600;
-margin-bottom: 2px;
-}
-.pos-cell .val {
-font-family: var(–font-mono);
-font-size: var(–t-lg);
-font-weight: 600;
-color: var(–ink);
-font-variant-numeric: tabular-nums;
-}
-.pos-cell.z .val { color: var(–accent); }
-
-/* Jog */
-.jog-card {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-padding: var(–s-4);
-margin-bottom: var(–s-4);
-}
-.jog-row {
-display: flex;
-gap: var(–s-3);
-align-items: flex-start;
-justify-content: center;
-}
-.jog-pad {
-display: grid;
-grid-template-columns: 44px 44px 44px;
-grid-template-rows: 44px 44px 44px;
-gap: var(–s-1);
-}
-.jog-pad button,
-.jog-z button {
-height: 44px;
-padding: 0;
-font-size: var(–t-sm);
-font-weight: 600;
-color: var(–ink-2);
-background: var(–bg);
-border: 1px solid var(–border);
-font-family: var(–font-mono);
-}
-.jog-pad button:hover:not(:disabled),
-.jog-z button:hover:not(:disabled) {
-background: var(–accent-soft);
-color: var(–accent);
-border-color: var(–accent);
-}
-.jog-pad .home,
-.jog-z .home {
-background: var(–paper);
-color: var(–ink-dim);
-font-size: var(–t-xs);
-font-family: var(–font-ui);
-}
-.jog-pad .empty {
-visibility: hidden;
-}
-.jog-z {
-display: grid;
-grid-template-rows: 44px 44px 44px;
-gap: var(–s-1);
-}
-.jog-z button { width: 56px; }
-
-.jog-section-label {
-font-size: var(–t-xs);
-color: var(–ink-dim);
-margin: var(–s-3) 0 5px;
-font-weight: 500;
-}
-.step-row {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr 1fr;
-gap: var(–s-1);
-}
-.step-row button {
-padding: 0;
-height: 30px;
-font-size: var(–t-sm);
-font-family: var(–font-mono);
-background: var(–bg);
-}
-.step-row button.active {
-background: var(–ink);
-color: var(–paper);
-border-color: var(–ink);
-}
-
-.quick-row {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr;
-gap: var(–s-1);
-margin-top: var(–s-3);
-}
-.quick-row button {
-padding: 0 4px;
-height: 30px;
-font-size: var(–t-xs);
-}
-
-/* Macros */
-.prog-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: var(–s-1);
-margin-top: var(–s-1);
-}
-.prog-btn {
-position: relative;
-padding: 8px 24px 8px 10px;
-text-align: left;
-background: var(–paper);
-border: 1px solid var(–border);
-font-size: var(–t-xs);
-color: var(–ink);
-overflow: hidden;
-text-overflow: ellipsis;
-white-space: nowrap;
-height: 32px;
-justify-content: flex-start;
-}
-.prog-btn:hover:not(:disabled) {
-border-color: var(–accent);
-color: var(–accent);
-}
-.prog-btn .x {
-position: absolute;
-top: 1px;
-right: 4px;
-font-size: 14px;
-color: var(–ink-faint);
-line-height: 1;
-padding: 2px 4px;
-border-radius: 2px;
-cursor: pointer;
-}
-.prog-btn .x:hover {
-color: var(–accent);
-background: var(–accent-soft);
-}
-.prog-add {
-grid-column: 1 / -1;
-border-style: dashed;
-color: var(–ink-dim);
-background: transparent;
-text-align: center;
-padding: 0;
-height: 32px;
-}
-.prog-add:hover:not(:disabled) {
-color: var(–accent);
-border-color: var(–accent);
-}
-
-/* Modal */
-.modal-bg {
-position: fixed;
-inset: 0;
-background: rgba(20, 20, 20, 0.5);
-display: none;
-align-items: center;
-justify-content: center;
-z-index: 100;
-}
-.modal-bg.show { display: flex; }
+/* modal */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 100;
+  align-items: flex-end; justify-content: center;
+}
+.overlay.open { display: flex; }
 .modal {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 6px;
-padding: var(–s-5);
-max-width: 480px;
-width: 90%;
-box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  background: var(--card); border-radius: 20px 20px 0 0;
+  padding: 20px 20px 44px; width: 100%; max-width: 480px;
 }
-.modal h3 {
-font-size: var(–t-lg);
-font-weight: 600;
-margin-bottom: var(–s-3);
+.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.field { margin-bottom: 12px; }
+.field label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 5px; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px;
+  background: var(--bg); color: var(--text); outline: none;
 }
-.modal textarea {
-height: 120px;
-resize: vertical;
+.field input:focus, .field textarea:focus { border-color: #999; }
+.field textarea { resize: none; height: 72px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+.modal-actions button {
+  flex: 1; padding: 12px; border-radius: 10px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; border: none;
 }
-.modal-actions {
-display: flex;
-gap: var(–s-2);
-margin-top: var(–s-3);
-justify-content: flex-end;
-}
+.btn-cancel { background: var(--bg); color: var(--muted); }
+.btn-save { background: var(--text); color: white; }
+.btn-danger-full { background: #fff5f5; color: var(--danger); border: 1px solid #fca5a5 !important; }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(–border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(–ink-faint); }
+/* fabs */
+.fab-row {
+  position: fixed; bottom: 20px; left: 16px; right: 16px;
+  display: flex; gap: 8px;
+}
+.fab {
+  flex: 1; background: var(--text); color: white; border: none;
+  border-radius: 30px; padding: 13px 16px;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.fab.secondary {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+.expense-note {
+  margin: 10px 16px 0;
+  background: #f0fdf4; border: 1px solid #bbf7d0;
+  border-radius: 10px; padding: 10px 14px;
+  font-size: 12px; color: #166534; line-height: 1.6;
+}
+.exp-item {
+  display:flex;align-items:center;gap:10px;
+  padding:11px 14px;border-bottom:1px solid var(--border);
+}
+.exp-item:last-child{border-bottom:none;}
+.exp-info{flex:1;min-width:0;}
+.exp-name{font-size:14px;font-weight:500;}
+.exp-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.exp-amount{font-size:15px;font-weight:600;flex-shrink:0;}
+.summary-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border);
+}
+.summary-row:last-child{border-bottom:none;}
+.summary-name{font-size:13px;font-weight:500;}
+.summary-detail{font-size:11px;color:var(--muted);margin-top:2px;}
+.summary-owes{font-size:13px;font-weight:600;color:var(--danger);}
+.summary-paid{font-size:13px;font-weight:600;color:var(--check);}
+.summary-even{font-size:12px;color:var(--muted);}
 
-/* Footer */
-footer {
-height: var(–h-footer);
-border-top: 1px solid var(–border);
-background: var(–paper);
-display: flex;
-align-items: center;
-justify-content: space-between;
-padding: 0 var(–s-6);
-font-size: var(–t-xs);
-color: var(–ink-faint);
-flex-shrink: 0;
-}
-footer .sig {
-color: var(–ink-dim);
-}
-footer .sig em {
-color: var(–accent);
-font-style: italic;
-font-weight: 500;
-margin: 0 4px;
-}
-footer .sep {
-color: var(–border);
-margin: 0 var(–s-2);
+  padding: 20px 14px; text-align: center;
+  font-size: 13px; color: var(--muted);
 }
 </style>
-
 </head>
 <body>
 
 <header>
-  <div class="brand">
-    <h1>Channel <span>G-code</span> Generator</h1>
-    <div class="subtitle">Parallel Microfluidic Channels · Microscope Slide</div>
-  </div>
-  <div class="conn-bar">
-    <div class="conn-led" id="led"></div>
-    <div class="conn-state" id="connState">Not connected</div>
-    <div class="baud-group">
-      <span>Baud</span>
-      <select id="baudSel" title="Baud rate">
-        <option value="9600" selected>9600</option>
-        <option value="115200">115200</option>
-        <option value="250000">250000</option>
-        <option value="57600">57600</option>
-        <option value="38400">38400</option>
-        <option value="19200">19200</option>
-      </select>
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <h1 id="header-title">Saturday · BBQ & Boat 🌊🔥</h1>
+      <p id="count-label">Connecting...</p>
     </div>
-    <button id="connectBtn" class="primary">Connect Printer</button>
-    <button id="disconnectBtn" disabled>Disconnect</button>
+    <button onclick="openSettings()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:18px;cursor:pointer;flex-shrink:0;">⚙️</button>
   </div>
 </header>
 
-<main>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('plan')">📋 Plan</button>
+  <button class="tab" onclick="switchTab('list')">🛒 Shopping</button>
+  <button class="tab" onclick="switchTab('boat')">⛵ Boat</button>
+  <button class="tab" onclick="switchTab('bringing')">🧺 Bringing</button>
+  <button class="tab" onclick="switchTab('expense')">💰 Expenses</button>
+  <button class="tab" onclick="switchTab('manage')">⚙️ Manage</button>
+</div>
 
-  <!-- LEFT COLUMN: CONFIG + GCODE -->
+<div class="sync-bar">
+  <div class="sync-dot loading" id="sync-dot"></div>
+  <span id="sync-label">Connecting to Firebase...</span>
+</div>
 
-  <section class="col col-left">
-    <div class="config-section">
-      <div class="browser-warn" id="browserWarn">
-        Direct printer connection requires Chrome or Edge. You can still generate and download G-code.
+<!-- ===== PLAN TAB ===== -->
+<div class="page active" id="page-plan">
+
+  <!-- Intro plan card -->
+  <div style="margin:12px 16px 0; background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden;">
+    <div id="intro-map-wrap" style="width:100%; height:160px; background:#e8e4dc;">
+      <iframe
+        id="intro-map"
+        width="100%" height="160"
+        style="border:0; display:block;"
+        loading="lazy"
+        allowfullscreen
+        referrerpolicy="no-referrer-when-downgrade"
+        src="https://www.google.com/maps?q=Boats+and+Bikes+at+Bald+Eagle+State+Park,+Howard,+PA&output=embed">
+      </iframe>
+    </div>
+    <div style="padding:13px 14px 14px;" id="intro-text-block">
+      <div style="font-size:15px; font-weight:600; margin-bottom:4px;" id="intro-title-text">Saturday · BBQ & Boat 🌊🔥</div>
+      <div style="font-size:12px; color:var(--muted); line-height:1.7;" id="intro-body-text">
+        📍 <strong>Boats &amp; Bikes · Bald Eagle State Park</strong><br>
+        ⛵ Boat rental at <strong>11:00 AM</strong> · 2 hours on the water<br>
+        🔥 BBQ cookout starting <strong>~1:30 PM</strong> for 11–15 people<br>
+        🍗 Food, drinks &amp; good vibes — expenses split after the event
       </div>
-
-```
-  <h2><span class="num">01</span>Reference Z</h2>
-  <p class="hint">Jog to top of petri dish, then capture as Z = 0.</p>
-  <button id="zeroBtn" class="ghost-accent">Set Z = 0 at current position</button>
-  <div id="zeroState" class="alert good">Z origin captured.</div>
-
-  <hr>
-
-  <h2><span class="num">02</span>Geometry</h2>
-  <p class="hint">Slide working area: 70 × 20 mm. Channels run along X.</p>
-
-  <div class="row">
-    <div class="field">
-      <label>Length X <span class="max">≤ 70</span></label>
-      <input type="number" id="lenX" value="50" min="1" max="70" step="0.1">
-    </div>
-    <div class="field">
-      <label>Print Z <span class="max">mm</span></label>
-      <input type="number" id="zPrint" value="0.3" min="0" max="25" step="0.05">
     </div>
   </div>
 
-  <div class="row">
-    <div class="field">
-      <label>Travel Z <span class="max">mm</span></label>
-      <input type="number" id="zTravel" value="25" min="1" max="50" step="0.5">
+  <div class="timeline" id="timeline-container"></div>
+
+  <div class="expense-note" id="expense-note"></div>
+
+</div>
+
+<!-- ===== SHOPPING TAB ===== -->
+<div class="page" id="page-list">
+
+  <div class="progress-bar-wrap" style="padding-top:12px;">
+    <div class="progress-label">
+      <span>Shopping progress</span>
+      <span id="prog-text">0 / 0</span>
     </div>
-    <div class="field">
-      <label>Feedrate F</label>
-      <input type="number" id="feed" value="1000" min="50" max="5000" step="50">
-    </div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
   </div>
 
-  <div class="field">
-    <label>Start Y <span class="max">first channel, mm</span></label>
-    <input type="number" id="startY" value="0" min="0" max="20" step="0.1">
-  </div>
+  <div id="lists-container"></div>
 
-  <hr>
-
-  <h2><span class="num">03</span>Channels <span class="pill" id="countPill">1 channel</span></h2>
-  <p class="hint">First channel sits at Start Y. Each row adds another channel offset by spacing along Y.</p>
-
-  <div id="channelsList" class="channels-list"></div>
-  <button class="add-channel" id="addChannel">+ add channel</button>
-
-  <div class="alert" id="yAlert">Y position exceeds 20 mm slide width.</div>
-
-  <div class="stats">
-    <div class="stat-row"><span class="label">Channels</span><span class="val" id="sChan">1</span></div>
-    <div class="stat-row"><span class="label">Y span</span><span class="val" id="sYspan">0.0 mm</span></div>
-    <div class="stat-row"><span class="label">Print travel</span><span class="val" id="sPrint">50.0 mm</span></div>
+  <div class="fab-row">
+    <button class="fab secondary" onclick="resetChecks()">↺ Reset checks</button>
   </div>
 </div>
 
-<div class="gcode-section">
-  <h2><span class="num">04</span>G-code Output</h2>
-  <textarea class="gcode-area" id="gcode" spellcheck="false"></textarea>
-  <div class="actions">
-    <button id="generateBtn" class="primary">Generate</button>
-    <button id="copyBtn">Copy</button>
-    <button id="downloadBtn">Save</button>
-    <button id="runBtn" class="accent" disabled>▶ Send</button>
-  </div>
-  <div class="runner" id="runner" style="display:none;">
-    <div class="runner-header">
-      <span id="runnerLabel">Streaming…</span>
-      <button id="stopBtn" class="small">Stop</button>
+<!-- ===== BOAT TAB ===== -->
+<div class="page" id="page-boat">
+  <div class="boat-section">
+
+    <div class="info-card" style="margin: 0 0 12px;" id="boat-info-card"></div>
+
+    <p class="section-head" style="padding:0 0 8px;">Choose boat type</p>
+    <div class="boat-type-cards">
+      <div class="boat-card" id="bcard-pontoon" onclick="selectBoatType('pontoon')">
+        <div class="bc-emoji">🛥️</div>
+        <div class="bc-name">Ski & Tube Pontoon</div>
+        <div class="bc-cap">Up to 12 people</div>
+        <div class="bc-price">115 HP · 23 ft</div>
+      </div>
+      <div class="boat-card" id="bcard-skiboat" onclick="selectBoatType('skiboat')">
+        <div class="bc-emoji">⛵</div>
+        <div class="bc-name">Ski Boat</div>
+        <div class="bc-cap">Up to 8 people</div>
+        <div class="bc-price">115 HP · 19 ft</div>
+      </div>
     </div>
-    <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
-    <div class="runner-stats">
-      <span id="progLines">0 / 0 lines</span>
-      <span id="progPct">0%</span>
+
+    <div class="slots-wrap">
+      <div class="slots-head">
+        <span>Boat seats</span>
+        <small id="slots-count">0 / 0 filled</small>
+      </div>
+      <div id="slots-list"></div>
+    </div>
+
+    <p class="section-head" style="padding:0 0 8px;">BBQ only (not joining boat)</p>
+    <div class="bbq-only-wrap">
+      <div class="bbq-only-head">
+        <span>🍗 BBQ only</span>
+        <button class="btn-sm primary" onclick="openAddBbqOnly()">+ Add name</button>
+      </div>
+      <div id="bbq-only-list"><div class="empty-state">No one added yet</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== BRINGING TAB ===== -->
+<div class="page" id="page-bringing">
+  <div class="bringing-section">
+    <div class="expense-note" style="margin: 0 0 12px;">
+      🧺 Let everyone know what you're bringing so there's no overlap — side dishes, drinks, desserts, etc. all welcome!
+    </div>
+    <div class="bringing-card">
+      <div id="bringing-list"><div class="empty-state">Nothing added yet</div></div>
+    </div>
+    <div class="fab-row">
+      <button class="fab" onclick="openAddBringing()">+ Add what I'm bringing</button>
     </div>
   </div>
 </div>
-```
 
-  </section>
+<!-- ===== EXPENSE TAB ===== -->
+<div class="page" id="page-expense">
+  <div style="padding:12px 16px 0;">
 
-  <!-- CENTER COLUMN: PREVIEW + CONSOLE -->
-
-  <section class="col col-center">
-    <div class="preview-section">
-      <h2><span class="num">05</span>Preview</h2>
-      <p class="hint">Top-down view. Solid lines are print passes, dashed are travel returns.</p>
-      <div class="preview-wrap">
-        <canvas id="preview"></canvas>
+    <!-- Summary card -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:11px 14px;background:#faf9f6;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;font-weight:600;">💰 Summary</span>
+        <span id="exp-total-label" style="font-size:13px;font-weight:600;color:var(--check);">$0.00 total</span>
       </div>
-      <div class="preview-legend">
-        <span><span class="swatch print"></span>Print pass</span>
-        <span><span class="swatch travel"></span>Travel</span>
-        <span><span class="swatch slide"></span>Slide 75 × 25</span>
-        <span><span class="swatch work"></span>Working area 70 × 20</span>
-      </div>
+      <div id="exp-summary-list"><div class="empty-state">Add expenses to see the breakdown</div></div>
     </div>
 
-```
-<div class="console-section">
-  <div class="console-header">
-    <h2><span class="num">06</span>Serial Console</h2>
-    <button id="clearLog" class="small">Clear</button>
-  </div>
-  <div class="console" id="console"></div>
-  <div class="send-row">
-    <input type="text" id="cmdInput" placeholder="Type G-code and press Enter (M114, G28, M105…)" disabled>
-    <button id="sendCmdBtn" disabled>Send</button>
+    <!-- Expenses list -->
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:6px;">Expenses</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;">
+      <div id="exp-list"><div class="empty-state">No expenses yet</div></div>
+    </div>
+
+    <div class="fab-row">
+      <button class="fab" onclick="openAddExpense()">+ Add expense</button>
+    </div>
   </div>
 </div>
-```
 
-  </section>
-
-  <!-- RIGHT COLUMN: TOOL HEAD -->
-
-  <section class="col col-toolhead">
-    <div class="toolhead-inner">
-      <h2 style="justify-content: space-between;">
-        <span><span class="num">07</span>Tool Head</span>
-        <span class="pill dim" id="jogStatus">Offline</span>
-      </h2>
-      <p class="hint">Manual control. Connect printer to enable.</p>
-
-```
-  <div class="pos-card">
-    <div class="pos-label">
-      <span>Current position</span>
-      <button data-action="getPos" class="small" disabled>Refresh</button>
-    </div>
-    <div class="pos-grid">
-      <div class="pos-cell"><div class="axis">X</div><div class="val" id="posX">—</div></div>
-      <div class="pos-cell"><div class="axis">Y</div><div class="val" id="posY">—</div></div>
-      <div class="pos-cell z"><div class="axis">Z</div><div class="val" id="posZ">—</div></div>
-    </div>
-  </div>
-
-  <div class="jog-card">
-    <div class="jog-row">
-      <div class="jog-pad">
-        <button class="empty" disabled></button>
-        <button class="jog-btn" data-axis="Y" data-dir="1" disabled>Y+</button>
-        <button class="empty" disabled></button>
-        <button class="jog-btn" data-axis="X" data-dir="-1" disabled>X−</button>
-        <button class="home" data-action="homeXY" disabled>⌂ XY</button>
-        <button class="jog-btn" data-axis="X" data-dir="1" disabled>X+</button>
-        <button class="empty" disabled></button>
-        <button class="jog-btn" data-axis="Y" data-dir="-1" disabled>Y−</button>
-        <button class="empty" disabled></button>
-      </div>
-      <div class="jog-z">
-        <button class="jog-btn" data-axis="Z" data-dir="1" disabled>Z+</button>
-        <button class="home" data-action="homeZ" disabled>⌂ Z</button>
-        <button class="jog-btn" data-axis="Z" data-dir="-1" disabled>Z−</button>
-      </div>
-    </div>
-
-    <div class="jog-section-label">Step size (mm)</div>
-    <div class="step-row" id="stepRow">
-      <button data-step="0.1">0.1</button>
-      <button data-step="1" class="active">1</button>
-      <button data-step="5">5</button>
-      <button data-step="10">10</button>
-    </div>
-
-    <div class="jog-section-label">Jog feedrate (mm/min)</div>
-    <input type="number" id="jogFeed" value="1500" min="100" max="6000" step="100">
-
-    <div class="quick-row">
-      <button data-action="homeAll" disabled>Home All</button>
-      <button data-action="motorsOff" disabled>Motors Off</button>
-      <button data-action="setOrigin" disabled>Set Origin</button>
-    </div>
-  </div>
-
-  <h2><span class="num">08</span>Macros</h2>
-  <p class="hint">Custom G-code shortcuts. Saved to this browser.</p>
-  <div class="prog-grid" id="progGrid"></div>
-</div>
-```
-
-  </section>
-
-</main>
-
-<footer>
-  <div class="sig">Ozbolat Lab <em>·</em> 2026 <em>·</em> made by Ozer</div>
-  <div>Channel G-code Generator</div>
-</footer>
-
-<div class="modal-bg" id="progModal">
-  <div class="modal">
-    <h3 id="modalTitle">New macro</h3>
+<!-- EXPENSE MODAL -->
+<div class="overlay" id="expense-modal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <h3 id="exp-modal-title">Add expense</h3>
     <div class="field">
-      <label>Label</label>
-      <input type="text" id="progLabel" placeholder="e.g. Park nozzle">
+      <label>Paid by</label>
+      <input type="text" id="exp-paidby" placeholder="e.g. Ozer" />
     </div>
     <div class="field">
-      <label>G-code (one command per line)</label>
-      <textarea id="progCode" placeholder="G90&#10;G1 X0 Y0 Z25 F2000"></textarea>
+      <label>Description</label>
+      <input type="text" id="exp-desc" placeholder="e.g. Sam's Club, Boat rental" />
+    </div>
+    <div class="field">
+      <label>Amount ($)</label>
+      <input type="number" id="exp-amount" placeholder="0.00" step="0.01" min="0" />
+    </div>
+    <div class="field">
+      <label>Split between</label>
+      <select id="exp-split">
+        <option value="all">Everyone (boat + BBQ-only)</option>
+        <option value="boat">Boat people only</option>
+        <option value="bbqonly">BBQ-only people</option>
+      </select>
     </div>
     <div class="modal-actions">
-      <button id="progCancel">Cancel</button>
-      <button id="progSave" class="primary">Save</button>
+      <button class="btn-cancel" onclick="closeModal('expense-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveExpense()">Save</button>
     </div>
   </div>
 </div>
 
-<script>
-const $ = id => document.getElementById(id);
 
-const state = {
-  zZeroSet: false,
-  spacings: [1.0],
-  jogStep: 1,
-  port: null,
-  reader: null,
-  writer: null,
-  connected: false,
-  rxBuf: '',
-  streaming: false,
-  streamLines: [],
-  streamIdx: 0,
-  awaitingOk: false,
-  progButtons: JSON.parse(localStorage.getItem('progButtons') || 'null') || [
-    { label: 'Park (X0 Y0 Z25)', code: 'G90\nG1 Z25 F1500\nG1 X0 Y0 F2000' },
-    { label: 'Disable steppers', code: 'M84' },
-  ],
-  editingProgIdx: null,
-  pos: { X: null, Y: null, Z: null },
+<div class="page" id="page-manage">
+  <div class="manage-section">
+    <div id="manage-container"></div>
+    <div class="add-cat-row">
+      <input type="text" id="new-cat-input" placeholder="New category name..." />
+      <button class="btn-sm primary" onclick="addCategory()">+ Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ITEM MODAL -->
+<div class="overlay" id="item-modal">
+  <div class="modal">
+    <h3 id="modal-title">Add item</h3>
+    <div class="field">
+      <label>Category</label>
+      <select id="modal-cat"></select>
+    </div>
+    <div class="field">
+      <label>Item name</label>
+      <input type="text" id="modal-name" placeholder="e.g. Burger patties" />
+    </div>
+    <div class="field">
+      <label>Quantity / note</label>
+      <input type="text" id="modal-qty" placeholder="e.g. 3 lbs" />
+    </div>
+    <div class="field">
+      <label>Store</label>
+      <select id="modal-tag">
+        <option value="Sam's">Sam's Club</option>
+        <option value="Walmart">Walmart</option>
+        <option value="store">Other store</option>
+        <option value="pantry">Pantry / have it</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('item-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveItem()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SLOT NAME MODAL -->
+<div class="overlay" id="slot-modal">
+  <div class="modal">
+    <h3 id="slot-modal-title">Sign up for boat</h3>
+    <div class="field">
+      <label>Your name</label>
+      <input type="text" id="slot-name-input" placeholder="e.g. Alex" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('slot-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveSlot()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- BBQ ONLY MODAL -->
+<div class="overlay" id="bbqonly-modal">
+  <div class="modal">
+    <h3>Add BBQ-only guest</h3>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="bbqonly-name-input" placeholder="e.g. Jordan" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('bbqonly-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveBbqOnly()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- BRINGING MODAL -->
+<div class="overlay" id="bringing-modal">
+  <div class="modal">
+    <h3 id="bringing-modal-title">What are you bringing?</h3>
+    <div class="field">
+      <label>Your name</label>
+      <input type="text" id="bringing-name-input" placeholder="e.g. Sara" />
+    </div>
+    <div class="field">
+      <label>What you're bringing</label>
+      <textarea id="bringing-what-input" placeholder="e.g. Pasta salad, drinks, etc."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('bringing-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveBringing()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="settings-modal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <h3>⚙️ Event Settings</h3>
+
+    <div class="field">
+      <label>Event title</label>
+      <input type="text" id="s-title" placeholder="Saturday · BBQ & Boat 🌊🔥" />
+    </div>
+    <div class="field">
+      <label>Date / subtitle</label>
+      <input type="text" id="s-date" placeholder="e.g. June 7, 2026" />
+    </div>
+
+    <div class="field">
+      <label>Intro description (shown on plan card)</label>
+      <textarea id="s-intro-body" style="height:90px;" placeholder="Short event summary shown at the top..."></textarea>
+    </div>
+
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin:14px 0 8px;">Timeline cards</div>
+
+    <div id="s-timeline-fields"></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn-sm" onclick="addTimelineCard()" style="flex:1;">+ Add card</button>
+    </div>
+
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin:14px 0 8px;">Boat info</div>
+    <div class="field">
+      <label>Location name</label>
+      <input type="text" id="s-boat-location" placeholder="Bald Eagle State Park · Boats & Bikes" />
+    </div>
+    <div class="field">
+      <label>Boat details line</label>
+      <input type="text" id="s-boat-details" placeholder="11:00 AM · 2 hour rental · Meet at the boat dock" />
+    </div>
+    <div class="field">
+      <label>What to bring (comma-separated)</label>
+      <textarea id="s-boat-gear" placeholder="🩳 Swim shorts, 👟 Water shoes, 🧴 Sunscreen"></textarea>
+    </div>
+
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin:14px 0 8px;">Notes</div>
+    <div class="field">
+      <label>Cooking tip</label>
+      <textarea id="s-tip"></textarea>
+    </div>
+    <div class="field">
+      <label>Expense / sharing note</label>
+      <textarea id="s-expense"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('settings-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBbE2SN2ahlyOHaYIGEGeFikmtfoN8DOuM",
+  authDomain: "general-cba60.firebaseapp.com",
+  databaseURL: "https://general-cba60-default-rtdb.firebaseio.com",
+  projectId: "general-cba60",
+  storageBucket: "general-cba60.firebasestorage.app",
+  messagingSenderId: "210772843659",
+  appId: "1:210772843659:web:580e9e250be6f1730dc88e",
+  measurementId: "G-GW3CCP42JW"
 };
 
-// CHANNELS
-function renderChannels() {
-  const list = $('channelsList');
-  list.innerHTML = '';
-  state.spacings.forEach((sp, i) => {
-    const row = document.createElement('div');
-    row.className = 'channel-row';
-    row.innerHTML = `
-      <div class="idx">${(i+2).toString().padStart(2,'0')}</div>
-      <input type="number" min="0.05" max="20" step="0.05" value="${sp}" data-idx="${i}">
-      <button class="remove" data-rm="${i}">×</button>
-    `;
-    list.appendChild(row);
-  });
-  list.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('input', e => {
-      const idx = +e.target.dataset.idx;
-      const v = parseFloat(e.target.value);
-      if (!isNaN(v)) state.spacings[idx] = v;
-      updateAll();
-    });
-  });
-  list.querySelectorAll('.remove').forEach(btn => {
-    btn.addEventListener('click', e => {
-      const idx = +e.target.dataset.rm;
-      state.spacings.splice(idx, 1);
-      renderChannels();
-      updateAll();
-    });
-  });
-}
-$('addChannel').addEventListener('click', () => {
-  state.spacings.push(1.0);
-  renderChannels();
-  updateAll();
-});
-function getYPositions() {
-  const startY = parseFloat($('startY').value) || 0;
-  const ys = [startY];
-  let cur = startY;
-  state.spacings.forEach(sp => {
-    cur += (parseFloat(sp) || 0);
-    ys.push(cur);
-  });
-  return ys;
-}
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-// STATS
-function updateStats() {
-  const ys = getYPositions();
-  const lenX = parseFloat($('lenX').value) || 0;
-  const nChan = ys.length;
-  const ySpan = ys[ys.length-1] - ys[0];
-  const printTravel = lenX * nChan;
+function dbRef(path) { return db.ref(path); }
 
-  $('sChan').textContent = nChan;
-  $('sYspan').textContent = ySpan.toFixed(2) + ' mm';
-  $('sPrint').textContent = printTravel.toFixed(1) + ' mm';
-  $('countPill').textContent = nChan + (nChan === 1 ? ' channel' : ' channels');
+// ---- seed data from phone export ----
+const SEED_DATA = [
+  { cat: "Proteins", items: [
+    { name: "Hot dogs (all-beef)", qty: "3–4 lbs", tag: "Sam's" },
+    { name: "Hot dog buns", qty: "2 packs (24ct)", tag: "Sam's" },
+    { name: "Chicken thighs, boneless", qty: "8–10 lbs", tag: "Sam's" }
+  ]},
+  { cat: "Veggies", items: [
+    { name: "Corn on the cob", qty: "5 ears", tag: "Sam's" },
+    { name: "Green peppers", qty: "6 pieces", tag: "store" },
+    { name: "Mushrooms", qty: "2 lbs", tag: "Sam's" },
+    { name: "Eggplants", qty: "2 pieces", tag: "Sam's" },
+    { name: "Onions", qty: "", tag: "Sam's" },
+    { name: "Garlic", qty: "", tag: "Sam's" }
+  ]},
+  { cat: "Sides", items: [
+    { name: "Coleslaw mix + dressing", qty: "2 bags", tag: "Sam's" },
+    { name: "Potato salad (ready-made)", qty: "5 lb tub", tag: "Sam's" },
+    { name: "Watermelon", qty: "1 whole", tag: "Sam's" },
+    { name: "Pineapple", qty: "1 piece", tag: "Sam's" },
+    { name: "Ice Cream", qty: "1 pack", tag: "Sam's" },
+    { name: "Chips", qty: "", tag: "pantry" }
+  ]},
+  { cat: "Condiments", items: [
+    { name: "Ketchup + mustard", qty: "combo pack", tag: "pantry" },
+    { name: "BBQ sauce", qty: "2 bottles", tag: "pantry" },
+    { name: "Salt, pepper, garlic powder", qty: "pantry check", tag: "pantry" }
+  ]},
+  { cat: "Drinks", items: [
+    { name: "Water (case)", qty: "×2", tag: "Sam's" },
+    { name: "Soda variety pack", qty: "×1", tag: "Sam's" },
+    { name: "Beer / seltzers", qty: "24-pack", tag: "store" },
+    { name: "Ice", qty: "20–30 lbs", tag: "Sam's" }
+  ]},
+  { cat: "Supplies", items: [
+    { name: "Paper plates", qty: "50ct pack", tag: "Sam's" },
+    { name: "Plastic cups", qty: "×1 pack", tag: "Sam's" },
+    { name: "Napkins", qty: "×1 pack", tag: "Sam's" },
+    { name: "Aluminum foil", qty: "roll + pack", tag: "pantry" },
+    { name: "Trash bags", qty: "if low", tag: "pantry" },
+    { name: "Cutting board and knives", qty: "", tag: "pantry" },
+    { name: "Salad Bowl", qty: "", tag: "pantry" }
+  ]},
+  { cat: "Equipment", items: [
+    { name: "Bluetooth Speaker", qty: "", tag: "pantry" },
+    { name: "Frisbee", qty: "", tag: "pantry" },
+    { name: "Volleyball", qty: "", tag: "pantry" }
+  ]}
+];
 
-  const yMax = Math.max(...ys), yMin = Math.min(...ys);
-  const xValid = lenX > 0 && lenX <= 70;
-  const yValid = yMax <= 20 && yMin >= 0;
-  $('lenX').classList.toggle('invalid', !xValid);
-  $('yAlert').classList.toggle('show', !yValid);
-}
+// ---- state ----
+let shopData = [];
+let checked = {};
+let boatType = 'pontoon';
+let slots = [];
+let bbqOnly = [];
+let bringing = [];
+let expenses = [];
+let settings = {};
+let editingItem = null;
+let editingSlotIdx = null;
+let editingBbqOnlyIdx = null;
+let editingExpenseIdx = null;
 
-// PREVIEW
-function drawPreview() {
-  const c = $('preview');
-  if (!c) return;
-  const wrap = c.parentElement;
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = wrap.clientWidth;
-  const cssH = wrap.clientHeight;
-  if (cssW === 0 || cssH === 0) return;
+const DEFAULT_SETTINGS = {
+  title: 'Saturday · BBQ & Boat 🌊🔥',
+  date: 'June 7, 2026',
+  introBody: '📍 <strong>Boats &amp; Bikes · Bald Eagle State Park</strong><br>⛵ Boat rental at <strong>11:00 AM</strong> · 2 hours on the water<br>🔥 BBQ cookout starting <strong>~1:30 PM</strong> for 11–15 people<br>🍗 Food, drinks &amp; good vibes — expenses split after the event',
+  timeline: [
+    { time: '11:00 AM', label: '⛵ Boat', note: '2 hrs · back 1 PM', accent: 'boat' },
+    { time: '1:00 PM', label: '🔥 Grill setup', note: 'marinate · prep', accent: '' },
+    { time: '~1:30 PM', label: '🍗 BBQ', note: '11–15 people', accent: 'fire' }
+  ],
+  boatLocation: 'Bald Eagle State Park · Boats & Bikes',
+  boatDetails: '11:00 AM · 2 hour rental · Meet at the boat dock',
+  boatGear: '🩳 Swim shorts,👟 Water shoes,🕶️ Sunglasses,🧴 Sunscreen,🧢 Hat,🚿 Dry clothes,💧 Water bottle,📱 Waterproof case',
+  tip: '💡 Marinate chicken thighs overnight Friday. Grill thighs first (~30 min), hot dogs last.',
+  expense: '💰 Expenses will be shared — Ozer will track and split costs after the event. If you\'d like to bring something, add it in the Bringing tab!'
+};
 
-  c.width = cssW * dpr;
-  c.height = cssH * dpr;
-  c.style.width = cssW + 'px';
-  c.style.height = cssH + 'px';
-
-  const ctx = c.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, cssW, cssH);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, cssW, cssH);
-
-  const margin = 60;
-  const slideMM_W = 75, slideMM_H = 25;
-  const availW = cssW - margin*2;
-  const availH = cssH - margin*2;
-  const scale = Math.min(availW / slideMM_W, availH / slideMM_H);
-  const slideW = slideMM_W * scale;
-  const slideH = slideMM_H * scale;
-  const ox = (cssW - slideW)/2;
-  const oy = (cssH - slideH)/2;
-  const X = mm => ox + mm * scale;
-  const Y = mm => oy + slideH - mm * scale;
-
-  // Grid
-  ctx.strokeStyle = 'rgba(0,0,0,0.04)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= 75; x += 5) {
-    ctx.beginPath(); ctx.moveTo(X(x), oy); ctx.lineTo(X(x), oy + slideH); ctx.stroke();
-  }
-  for (let y = 0; y <= 25; y += 5) {
-    ctx.beginPath(); ctx.moveTo(ox, Y(y)); ctx.lineTo(ox + slideW, Y(y)); ctx.stroke();
-  }
-
-  // Slide
-  ctx.fillStyle = '#eaedf0';
-  ctx.fillRect(ox, oy, slideW, slideH);
-  ctx.strokeStyle = '#aab1b8';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(ox, oy, slideW, slideH);
-
-  // Working area
-  ctx.setLineDash([4,4]);
-  ctx.strokeStyle = 'rgba(155, 152, 144, 0.8)';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(X(0), Y(20), 70*scale, 20*scale);
-  ctx.setLineDash([]);
-
-  // Axis labels
-  ctx.fillStyle = '#9b9890';
-  ctx.font = '11px "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-  ctx.fillText('X →', ox + slideW + 8, Y(0));
-  ctx.fillText('Y ↑', ox - 28, oy + 12);
-  ctx.fillText('0,0', ox - 24, Y(0) + 14);
-  ctx.fillText('75', ox + slideW - 12, oy + slideH + 16);
-  ctx.fillText('25', ox - 24, oy - 4);
-
-  // Channels
-  const ys = getYPositions();
-  const lenX = parseFloat($('lenX').value) || 0;
-  const xStart = 0, xEnd = lenX;
-
-  ys.forEach((yMM, i) => {
-    if (yMM < 0 || yMM > 20 || lenX <= 0 || lenX > 70) return;
-
-    // Travel from previous
-    if (i > 0) {
-      const prevY = ys[i-1];
-      ctx.setLineDash([4,4]);
-      ctx.strokeStyle = 'rgba(155, 152, 144, 0.8)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(X(xEnd), Y(prevY));
-      ctx.lineTo(X(xStart), Y(yMM));
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Print line
-    ctx.strokeStyle = '#c14318';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(X(xStart), Y(yMM));
-    ctx.lineTo(X(xEnd), Y(yMM));
-    ctx.stroke();
-
-    // Arrow
-    const ax = X(xEnd), ay = Y(yMM);
-    ctx.fillStyle = '#c14318';
-    ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - 8, ay - 4);
-    ctx.lineTo(ax - 8, ay + 4);
-    ctx.closePath();
-    ctx.fill();
-
-    // Label
-    ctx.fillStyle = '#6c6f74';
-    ctx.font = '11px "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(`#${i+1} Y=${yMM.toFixed(2)}`, X(xStart) - 8, Y(yMM) + 4);
-    ctx.textAlign = 'left';
-  });
+// ---- sync dot ----
+function setSyncStatus(state, msg) {
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  label.textContent = msg;
 }
 
-// G-CODE GENERATION
-function generateGcode() {
-  const lenX = parseFloat($('lenX').value);
-  const zPrint = parseFloat($('zPrint').value);
-  const zTravel = parseFloat($('zTravel').value);
-  const feed = parseFloat($('feed').value);
-  const ys = getYPositions();
-  const yMax = Math.max(...ys), yMin = Math.min(...ys);
+// ---- Firebase paths ----
+const PATHS = {
+  shopData: 'bbq_saturday/shop_data',
+  checked: 'bbq_saturday/checked',
+  boatType: 'bbq_saturday/boat_type',
+  slots: 'bbq_saturday/slots',
+  bbqOnly: 'bbq_saturday/bbq_only',
+  bringing: 'bbq_saturday/bringing',
+  settings: 'bbq_saturday/settings',
+  expenses: 'bbq_saturday/expenses'
+};
 
-  const errs = [];
-  if (!(lenX > 0 && lenX <= 70)) errs.push(`Channel length ${lenX} out of range (0-70 mm)`);
-  if (!(zPrint >= 0 && zPrint < zTravel)) errs.push(`Z print height invalid`);
-  if (!(yMax <= 20 && yMin >= 0)) errs.push(`Y out of range (0-20 mm). Max=${yMax.toFixed(2)}`);
-  if (!state.zZeroSet) errs.push(`Z=0 reference not set yet`);
-
-  const lines = [];
-  const pad = n => Number(n).toFixed(3).replace(/\.?0+$/, '') || '0';
-
-  lines.push('; ============================================');
-  lines.push('; Channel G-code Generator');
-  lines.push(`; Generated ${new Date().toISOString()}`);
-  lines.push(`; Channels: ${ys.length} | Length X: ${pad(lenX)} mm`);
-  lines.push(`; Print Z: ${pad(zPrint)} | Travel Z: ${pad(zTravel)} | F${feed}`);
-  lines.push(`; Y positions: ${ys.map(pad).join(', ')}`);
-  if (errs.length) {
-    lines.push(';');
-    lines.push('; WARNINGS:');
-    errs.forEach(e => lines.push(`;   - ${e}`));
-  }
-  lines.push('; ============================================');
-  lines.push('G21');
-  lines.push('G90');
-  lines.push('G92 Z0');
-  lines.push(`G1 Z${pad(zTravel)} F${feed}`);
-  lines.push('');
-
-  ys.forEach((y, i) => {
-    lines.push(`; Channel ${i+1}/${ys.length} @ Y=${pad(y)}`);
-    lines.push(`G1 X0 Y${pad(y)} F${feed}`);
-    lines.push(`G1 Z${pad(zPrint)} F${feed}`);
-    lines.push(`G1 X${pad(lenX)} F${feed}`);
-    lines.push(`G1 Z${pad(zTravel)} F${feed}`);
-    if (i < ys.length - 1) lines.push(`G1 X0 F${feed}`);
-    lines.push('');
-  });
-
-  lines.push('; Done');
-  lines.push(`G1 Z${pad(zTravel)} F${feed}`);
-  lines.push(`G1 X0 Y0 F${feed}`);
-  lines.push('M84');
-
-  return lines.join('\n');
-}
-
-// SERIAL
-const hasSerial = 'serial' in navigator;
-if (!hasSerial) $('browserWarn').classList.add('show');
-
-function logLine(text, cls='sys') {
-  const el = $('console');
-  const d = document.createElement('div');
-  d.className = 'ln ' + cls;
-  d.textContent = text;
-  el.appendChild(d);
-  el.scrollTop = el.scrollHeight;
-  while (el.children.length > 400) el.removeChild(el.firstChild);
-}
-
-async function connect() {
-  if (!hasSerial) {
-    logLine('Browser does not support direct printer connection. Use Chrome or Edge.', 'sys');
-    return;
-  }
+// ---- init: load or seed ----
+async function init() {
+  setSyncStatus('loading', 'Loading...');
   try {
-    const port = await navigator.serial.requestPort();
-    const baud = parseInt($('baudSel').value);
-    await port.open({ baudRate: baud });
-    state.port = port;
-    state.connected = true;
-
-    const textEncoder = new TextEncoderStream();
-    state._writableClosed = textEncoder.readable.pipeTo(port.writable);
-    state.writer = textEncoder.writable.getWriter();
-
-    const textDecoder = new TextDecoderStream();
-    state._readableClosed = port.readable.pipeTo(textDecoder.writable);
-    state.reader = textDecoder.readable.getReader();
-
-    setConnState(true);
-    logLine(`Connected at ${baud} baud`, 'sys');
-    readLoop();
-  } catch (e) {
-    logLine('Connect error: ' + e.message, 'sys');
-    setConnState(false, true);
-  }
-}
-
-async function readLoop() {
-  try {
-    while (state.connected && state.reader) {
-      const { value, done } = await state.reader.read();
-      if (done) break;
-      if (value) {
-        state.rxBuf += value;
-        let nl;
-        while ((nl = state.rxBuf.indexOf('\n')) >= 0) {
-          const line = state.rxBuf.slice(0, nl).replace(/\r$/, '');
-          state.rxBuf = state.rxBuf.slice(nl + 1);
-          if (line.length) handleRxLine(line);
-        }
-      }
+    const snap = await db.ref('bbq_saturday').once('value');
+    if (!snap.exists()) {
+      // seed
+      await db.ref(PATHS.shopData).set(SEED_DATA);
+      await db.ref(PATHS.checked).set({});
+      await db.ref(PATHS.boatType).set('pontoon');
+      await db.ref(PATHS.slots).set(Array(12).fill(null).map(() => ({ name: '' })));
+      await db.ref(PATHS.bbqOnly).set([]);
+      await db.ref(PATHS.settings).set(DEFAULT_SETTINGS);
+      await db.ref(PATHS.expenses).set([]);
     }
-  } catch (e) {
-    if (state.connected) logLine('Read error: ' + e.message, 'sys');
+    startListeners();
+    setSyncStatus('ok', 'Live · syncing with Firebase');
+  } catch(e) {
+    setSyncStatus('err', 'Firebase error: ' + e.message);
   }
 }
 
-function handleRxLine(line) {
-  logLine(line, 'rx');
-  const m = line.match(/X:(-?\d+\.?\d*)\s+Y:(-?\d+\.?\d*)\s+Z:(-?\d+\.?\d*)/i);
-  if (m) {
-    state.pos.X = parseFloat(m[1]);
-    state.pos.Y = parseFloat(m[2]);
-    state.pos.Z = parseFloat(m[3]);
-    $('posX').textContent = state.pos.X.toFixed(2);
-    $('posY').textContent = state.pos.Y.toFixed(2);
-    $('posZ').textContent = state.pos.Z.toFixed(2);
-  }
-  const lo = line.toLowerCase().trim();
-  if (lo === 'ok' || lo.startsWith('ok ') || lo.startsWith('ok\t')) {
-    if (state.awaitingOk) {
-      state.awaitingOk = false;
-      if (state.streaming) sendNextStreamLine();
-    }
-  }
-}
-
-async function disconnect() {
-  state.connected = false;
-  state.streaming = false;
-  $('runner').style.display = 'none';
-  try {
-    if (state.reader) {
-      try { await state.reader.cancel(); } catch {}
-      try { state.reader.releaseLock(); } catch {}
-    }
-    if (state.writer) {
-      try { await state.writer.close(); } catch {}
-    }
-    if (state.port) {
-      try { await state.port.close(); } catch {}
-    }
-  } catch (e) {
-    logLine('Disconnect error: ' + e.message, 'sys');
-  }
-  state.port = null;
-  state.reader = null;
-  state.writer = null;
-  setConnState(false);
-  logLine('Disconnected', 'sys');
-}
-
-function setConnState(on, err=false) {
-  $('led').className = 'conn-led' + (on ? ' on' : '') + (err ? ' err' : '');
-  $('connState').textContent = on ? 'Connected' : (err ? 'Connection error' : 'Not connected');
-  $('connectBtn').disabled = on;
-  $('disconnectBtn').disabled = !on;
-  $('cmdInput').disabled = !on;
-  $('sendCmdBtn').disabled = !on;
-  $('runBtn').disabled = !on;
-  $('jogStatus').textContent = on ? 'Ready' : 'Offline';
-  $('jogStatus').className = 'pill ' + (on ? 'good' : 'dim');
-  document.querySelectorAll('.jog-btn').forEach(b => b.disabled = !on);
-  document.querySelectorAll('[data-action]').forEach(b => b.disabled = !on);
-  document.querySelectorAll('.prog-btn:not(.prog-add)').forEach(b => b.disabled = !on);
-}
-
-async function sendRaw(text) {
-  if (!state.writer || !state.connected) return;
-  try { await state.writer.write(text); }
-  catch (e) { logLine('Write error: ' + e.message, 'sys'); }
-}
-
-async function sendLine(line) {
-  if (!state.connected) { logLine('(not connected) ' + line, 'sys'); return; }
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith(';')) return;
-  logLine(trimmed, 'tx');
-  await sendRaw(trimmed + '\n');
-}
-
-// JOG
-$('stepRow').addEventListener('click', e => {
-  if (e.target.tagName !== 'BUTTON') return;
-  $('stepRow').querySelectorAll('button').forEach(b => b.classList.remove('active'));
-  e.target.classList.add('active');
-  state.jogStep = parseFloat(e.target.dataset.step);
-});
-
-document.querySelectorAll('.jog-btn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    if (!state.connected) return;
-    const axis = btn.dataset.axis;
-    const dir = parseInt(btn.dataset.dir);
-    const dist = state.jogStep * dir;
-    const f = parseInt($('jogFeed').value) || 1500;
-    await sendLine('G91');
-    await sendLine(`G1 ${axis}${dist} F${f}`);
-    await sendLine('G90');
-    await sendLine('M114');
-  });
-});
-
-document.querySelectorAll('[data-action]').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    if (!state.connected) return;
-    const a = btn.dataset.action;
-    if (a === 'homeXY') await sendLine('G28 X Y');
-    else if (a === 'homeZ') await sendLine('G28 Z');
-    else if (a === 'homeAll') await sendLine('G28');
-    else if (a === 'getPos') await sendLine('M114');
-    else if (a === 'motorsOff') await sendLine('M84');
-    else if (a === 'setOrigin') {
-      if (confirm('Set current X, Y, Z all to 0 (G92 X0 Y0 Z0)?')) {
-        await sendLine('G92 X0 Y0 Z0');
-        await sendLine('M114');
-      }
-    }
-  });
-});
-
-// MACROS
-function renderProgButtons() {
-  const grid = $('progGrid');
-  grid.innerHTML = '';
-  state.progButtons.forEach((b, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'prog-btn';
-    btn.disabled = !state.connected;
-    btn.title = b.code;
-    btn.innerHTML = `${escapeHtml(b.label)}<span class="x" data-rm="${i}">×</span>`;
-    btn.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('x')) {
-        e.stopPropagation();
-        if (confirm('Delete "' + b.label + '"?')) {
-          state.progButtons.splice(i, 1);
-          saveProgButtons();
-          renderProgButtons();
-        }
-        return;
-      }
-      if (!state.connected) return;
-      const lines = b.code.split('\n');
-      for (const ln of lines) await sendLine(ln);
-    });
-    grid.appendChild(btn);
-  });
-  const add = document.createElement('button');
-  add.className = 'prog-btn prog-add';
-  add.textContent = '+ add macro';
-  add.addEventListener('click', () => openProgModal());
-  grid.appendChild(add);
-}
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function saveProgButtons() {
-  localStorage.setItem('progButtons', JSON.stringify(state.progButtons));
-}
-function openProgModal(idx=null) {
-  state.editingProgIdx = idx;
-  if (idx !== null) {
-    $('modalTitle').textContent = 'Edit macro';
-    $('progLabel').value = state.progButtons[idx].label;
-    $('progCode').value = state.progButtons[idx].code;
-  } else {
-    $('modalTitle').textContent = 'New macro';
-    $('progLabel').value = '';
-    $('progCode').value = '';
-  }
-  $('progModal').classList.add('show');
-}
-$('progCancel').addEventListener('click', () => $('progModal').classList.remove('show'));
-$('progSave').addEventListener('click', () => {
-  const label = $('progLabel').value.trim();
-  const code = $('progCode').value.trim();
-  if (!label || !code) return;
-  if (state.editingProgIdx !== null) {
-    state.progButtons[state.editingProgIdx] = { label, code };
-  } else {
-    state.progButtons.push({ label, code });
-  }
-  saveProgButtons();
-  renderProgButtons();
-  $('progModal').classList.remove('show');
-});
-
-// STREAMING
-async function sendNextStreamLine() {
-  if (!state.streaming) return;
-  while (state.streamIdx < state.streamLines.length) {
-    const raw = state.streamLines[state.streamIdx];
-    const trimmed = raw.trim();
-    state.streamIdx++;
+function startListeners() {
+  db.ref(PATHS.shopData).on('value', snap => {
+    shopData = snap.val() || SEED_DATA;
+    renderList();
     updateProgress();
-    if (!trimmed || trimmed.startsWith(';')) continue;
-    const semi = trimmed.indexOf(';');
-    const cmd = (semi >= 0 ? trimmed.slice(0, semi) : trimmed).trim();
-    if (!cmd) continue;
-    logLine(cmd, 'tx');
-    state.awaitingOk = true;
-    await sendRaw(cmd + '\n');
+    renderManage();
+  });
+  db.ref(PATHS.checked).on('value', snap => {
+    checked = snap.val() || {};
+    renderList();
+    updateProgress();
+  });
+  db.ref(PATHS.boatType).on('value', snap => {
+    boatType = snap.val() || 'pontoon';
+    renderBoatTypeCards();
+    renderSlots();
+  });
+  db.ref(PATHS.slots).on('value', snap => {
+    const raw = snap.val();
+    slots = Array.isArray(raw) ? raw : (raw ? Object.values(raw) : []);
+    renderSlots();
+    renderExpenses();
+  });
+  db.ref(PATHS.bbqOnly).on('value', snap => {
+    const raw = snap.val();
+    bbqOnly = Array.isArray(raw) ? raw : (raw ? Object.values(raw) : []);
+    renderBbqOnly();
+    renderExpenses();
+  });
+  db.ref(PATHS.bringing).on('value', snap => {
+    const raw = snap.val();
+    bringing = Array.isArray(raw) ? raw : (raw ? Object.values(raw) : []);
+    renderBringing();
+  });
+  db.ref(PATHS.settings).on('value', snap => {
+    settings = snap.val() || DEFAULT_SETTINGS;
+    applySettings();
+  });
+  db.ref(PATHS.expenses).on('value', snap => {
+    const raw = snap.val();
+    expenses = Array.isArray(raw) ? raw : (raw ? Object.values(raw) : []);
+    renderExpenses();
+  });
+}
+
+// ---- settings ----
+function applySettings() {
+  const s = { ...DEFAULT_SETTINGS, ...settings };
+  // header
+  document.getElementById('header-title').textContent = s.title;
+  // intro card
+  const introEl = document.getElementById('intro-body-text');
+  if (introEl) introEl.innerHTML = s.introBody || DEFAULT_SETTINGS.introBody;
+  const introTitle = document.getElementById('intro-title-text');
+  if (introTitle) introTitle.textContent = s.title;
+  // timeline
+  const tl = document.getElementById('timeline-container');
+  tl.innerHTML = (s.timeline || []).map(c =>
+    `<div class="tcard ${c.accent || ''}">
+      <div class="tc-time">${c.time}</div>
+      <div class="tc-label">${c.label}</div>
+      <div class="tc-note">${c.note}</div>
+    </div>`
+  ).join('');
+  // tip & expense
+  document.getElementById('expense-note').innerHTML = s.expense;
+  // boat info card
+  const gear = (s.boatGear || '').split(',').map(g => g.trim()).filter(Boolean);
+  document.getElementById('boat-info-card').innerHTML = `
+    <h4>📍 ${s.boatLocation}</h4>
+    <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:10px;">${s.boatDetails}</div>
+    <h4 style="margin-bottom:6px;">What to bring 🎒</h4>
+    <div class="info-row">${gear.map(g => `<span class="badge">${g}</span>`).join('')}</div>`;
+}
+
+let settingsTimelineEditing = [];
+
+window.openSettings = function() {
+  const s = { ...DEFAULT_SETTINGS, ...settings };
+  document.getElementById('s-title').value = s.title;
+  document.getElementById('s-date').value = s.date || '';
+  document.getElementById('s-intro-body').value = (s.introBody || DEFAULT_SETTINGS.introBody).replace(/<br>/g, '\n').replace(/<[^>]+>/g, '');
+  document.getElementById('s-boat-location').value = s.boatLocation;
+  document.getElementById('s-boat-details').value = s.boatDetails;
+  document.getElementById('s-boat-gear').value = s.boatGear;
+  document.getElementById('s-tip').value = s.tip;
+  document.getElementById('s-expense').value = s.expense;
+  settingsTimelineEditing = JSON.parse(JSON.stringify(s.timeline || []));
+  renderSettingsTimeline();
+  document.getElementById('settings-modal').classList.add('open');
+};
+
+function renderSettingsTimeline() {
+  const container = document.getElementById('s-timeline-fields');
+  container.innerHTML = settingsTimelineEditing.map((c, i) => `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:600;color:var(--muted);">Card ${i+1}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select onchange="setCardAccent(${i},this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--card);">
+            <option value="" ${c.accent===''?'selected':''}>Default</option>
+            <option value="boat" ${c.accent==='boat'?'selected':''}>Blue (boat)</option>
+            <option value="fire" ${c.accent==='fire'?'selected':''}>Orange (BBQ)</option>
+          </select>
+          <button class="btn-icon del" onclick="removeTimelineCard(${i})" style="width:26px;height:26px;font-size:13px;">✕</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+        <input style="padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;background:var(--card);" placeholder="Time" value="${c.time}" oninput="setCardField(${i},'time',this.value)" />
+        <input style="padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;background:var(--card);" placeholder="Label" value="${c.label}" oninput="setCardField(${i},'label',this.value)" />
+      </div>
+      <input style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:DM Sans,sans-serif;font-size:13px;background:var(--card);" placeholder="Note" value="${c.note}" oninput="setCardField(${i},'note',this.value)" />
+    </div>`).join('');
+}
+
+window.setCardField = function(i, field, val) { settingsTimelineEditing[i][field] = val; };
+window.setCardAccent = function(i, val) { settingsTimelineEditing[i].accent = val; renderSettingsTimeline(); };
+window.removeTimelineCard = function(i) { settingsTimelineEditing.splice(i, 1); renderSettingsTimeline(); };
+window.addTimelineCard = function() {
+  settingsTimelineEditing.push({ time: '', label: '', note: '', accent: '' });
+  renderSettingsTimeline();
+};
+
+window.saveSettings = function() {
+  const updated = {
+    title: document.getElementById('s-title').value.trim() || DEFAULT_SETTINGS.title,
+    date: document.getElementById('s-date').value.trim(),
+    introBody: document.getElementById('s-intro-body').value.trim().replace(/\n/g, '<br>') || DEFAULT_SETTINGS.introBody,
+    timeline: settingsTimelineEditing,
+    boatLocation: document.getElementById('s-boat-location').value.trim() || DEFAULT_SETTINGS.boatLocation,
+    boatDetails: document.getElementById('s-boat-details').value.trim() || DEFAULT_SETTINGS.boatDetails,
+    boatGear: document.getElementById('s-boat-gear').value.trim() || DEFAULT_SETTINGS.boatGear,
+    tip: document.getElementById('s-tip').value.trim() || DEFAULT_SETTINGS.tip,
+    expense: document.getElementById('s-expense').value.trim() || DEFAULT_SETTINGS.expense,
+  };
+  db.ref(PATHS.settings).set(updated);
+  closeModal('settings-modal');
+};
+
+
+window.switchTab = function(tab) {
+  const tabs = ['plan','list','boat','bringing','expense','manage'];
+  tabs.forEach((t, i) => {
+    document.getElementById('page-' + t).classList.toggle('active', t === tab);
+    document.querySelectorAll('.tab')[i].classList.toggle('active', t === tab);
+  });
+};
+
+// ---- shopping list ----
+function tagClass(tag) {
+  if (tag === "Sam's") return '';
+  if (tag === 'Walmart') return ' walmart';
+  if (tag === 'store') return ' store';
+  return ' pantry';
+}
+
+function renderList() {
+  const container = document.getElementById('lists-container');
+  let html = '';
+  shopData.forEach((cat, ci) => {
+    html += `<div class="section-head">${cat.cat}</div><div class="list">`;
+    (cat.items || []).forEach((item, ii) => {
+      const id = ci + '_' + ii;
+      const isChecked = checked[id] ? ' checked' : '';
+      html += `<div class="item${isChecked}" id="item-${id}">
+        <div class="check-area" onclick="toggleCheck(${ci},${ii})">
+          <div class="check-circle"><div class="checkmark"></div></div>
+        </div>
+        <div class="item-info" onclick="toggleCheck(${ci},${ii})">
+          <div class="item-name">${item.name}</div>
+          <div class="item-qty">${item.qty || ''}</div>
+        </div>
+        <div class="item-tag${tagClass(item.tag)}">${item.tag}</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function updateProgress() {
+  const total = shopData.reduce((s, c) => s + (c.items ? c.items.length : 0), 0);
+  const done = Object.values(checked).filter(Boolean).length;
+  document.getElementById('prog-text').textContent = done + ' / ' + total;
+  document.getElementById('prog-fill').style.width = total ? (done / total * 100) + '%' : '0%';
+  const remaining = total - done;
+  const sublabel = document.getElementById('prog-sublabel');
+  if (sublabel) sublabel.textContent = done === total && total > 0 ? 'All done! ✅' : remaining + ' items left';
+  document.getElementById('count-label').textContent = done === total && total > 0
+    ? '✅ Shopping done! Ready for Saturday.'
+    : (total - done) + ' items left to buy';
+}
+
+window.toggleCheck = function(ci, ii) {
+  const id = ci + '_' + ii;
+  const newVal = !checked[id];
+  db.ref(PATHS.checked).update({ [id]: newVal });
+};
+
+window.resetChecks = function() {
+  if (!confirm('Reset all checkmarks?')) return;
+  db.ref(PATHS.checked).set({});
+};
+
+window.exportData = function() {
+  const payload = { bbq_data: shopData, bbq_checked: checked };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bbq_export.json';
+  a.click();
+};
+
+// ---- boat ----
+window.selectBoatType = function(type) {
+  const cap = type === 'pontoon' ? 12 : 8;
+  const currentCap = boatType === 'pontoon' ? 12 : 8;
+  if (type === boatType) return;
+  if (!confirm('Switch boat type? This will resize the slots list.')) return;
+  const newSlots = Array(cap).fill(null).map((_, i) => ({ name: slots[i] ? slots[i].name : '' }));
+  db.ref(PATHS.boatType).set(type);
+  db.ref(PATHS.slots).set(newSlots);
+};
+
+function renderBoatTypeCards() {
+  document.getElementById('bcard-pontoon').className = 'boat-card' + (boatType === 'pontoon' ? ' selected' : '');
+  document.getElementById('bcard-skiboat').className = 'boat-card' + (boatType === 'skiboat' ? ' selected' : '');
+}
+
+function renderSlots() {
+  const cap = boatType === 'pontoon' ? 12 : 8;
+  const filled = slots.filter(s => s && s.name).length;
+  document.getElementById('slots-count').textContent = filled + ' / ' + cap + ' filled';
+  let html = '';
+  for (let i = 0; i < cap; i++) {
+    const s = slots[i] || { name: '' };
+    const isEmpty = !s.name;
+    html += `<div class="slot">
+      <span class="slot-num">${i + 1}</span>
+      <span class="slot-name${isEmpty ? ' empty' : ''}">${isEmpty ? 'Open slot' : s.name}</span>
+      <div class="slot-actions">
+        <button class="btn-icon" onclick="openEditSlot(${i})">${isEmpty ? '➕' : '✏️'}</button>
+        ${!isEmpty ? `<button class="btn-icon del" onclick="clearSlot(${i})">✕</button>` : ''}
+      </div>
+    </div>`;
+  }
+  document.getElementById('slots-list').innerHTML = html;
+}
+
+window.openEditSlot = function(idx) {
+  editingSlotIdx = idx;
+  const s = slots[idx] || { name: '' };
+  document.getElementById('slot-modal-title').textContent = s.name ? 'Edit name' : 'Sign up for boat';
+  document.getElementById('slot-name-input').value = s.name || '';
+  document.getElementById('slot-modal').classList.add('open');
+  setTimeout(() => document.getElementById('slot-name-input').focus(), 100);
+};
+
+window.saveSlot = function() {
+  const name = document.getElementById('slot-name-input').value.trim();
+  if (!name) return;
+  const newSlots = [...slots];
+  while (newSlots.length <= editingSlotIdx) newSlots.push({ name: '' });
+  newSlots[editingSlotIdx] = { name };
+  db.ref(PATHS.slots).set(newSlots);
+  closeModal('slot-modal');
+};
+
+window.clearSlot = function(idx) {
+  if (!confirm('Remove ' + (slots[idx] && slots[idx].name) + ' from boat?')) return;
+  const newSlots = [...slots];
+  newSlots[idx] = { name: '' };
+  db.ref(PATHS.slots).set(newSlots);
+};
+
+// bbq only
+function renderBbqOnly() {
+  const list = document.getElementById('bbq-only-list');
+  if (!bbqOnly.length) { list.innerHTML = '<div class="empty-state">No one added yet</div>'; return; }
+  list.innerHTML = bbqOnly.map((p, i) => `
+    <div class="bbq-person">
+      <span class="bbq-person-name">${p.name}</span>
+      <div class="slot-actions">
+        <button class="btn-icon" onclick="openEditBbqOnly(${i})">✏️</button>
+        <button class="btn-icon del" onclick="deleteBbqOnly(${i})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+window.openAddBbqOnly = function() {
+  editingBbqOnlyIdx = null;
+  document.getElementById('bbqonly-name-input').value = '';
+  document.getElementById('bbqonly-modal').classList.add('open');
+  setTimeout(() => document.getElementById('bbqonly-name-input').focus(), 100);
+};
+window.openEditBbqOnly = function(idx) {
+  editingBbqOnlyIdx = idx;
+  document.getElementById('bbqonly-name-input').value = bbqOnly[idx].name;
+  document.getElementById('bbqonly-modal').classList.add('open');
+};
+window.saveBbqOnly = function() {
+  const name = document.getElementById('bbqonly-name-input').value.trim();
+  if (!name) return;
+  const arr = [...bbqOnly];
+  if (editingBbqOnlyIdx !== null) arr[editingBbqOnlyIdx] = { name };
+  else arr.push({ name });
+  db.ref(PATHS.bbqOnly).set(arr);
+  closeModal('bbqonly-modal');
+};
+window.deleteBbqOnly = function(idx) {
+  if (!confirm('Remove ' + bbqOnly[idx].name + '?')) return;
+  const arr = [...bbqOnly];
+  arr.splice(idx, 1);
+  db.ref(PATHS.bbqOnly).set(arr);
+};
+
+// ---- bringing ----
+function renderBringing() {
+  const list = document.getElementById('bringing-list');
+  if (!bringing.length) { list.innerHTML = '<div class="empty-state">Nothing added yet</div>'; return; }
+  list.innerHTML = bringing.map((b, i) => `
+    <div class="bringing-item">
+      <div class="bringing-info">
+        <div class="bringing-name">${b.name}</div>
+        <div class="bringing-what">${b.what}</div>
+      </div>
+      <div class="slot-actions">
+        <button class="btn-icon" onclick="openEditBringing(${i})">✏️</button>
+        <button class="btn-icon del" onclick="deleteBringing(${i})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+window.openAddBringing = function() {
+  editingBringingIdx = null;
+  document.getElementById('bringing-modal-title').textContent = "What are you bringing?";
+  document.getElementById('bringing-name-input').value = '';
+  document.getElementById('bringing-what-input').value = '';
+  document.getElementById('bringing-modal').classList.add('open');
+  setTimeout(() => document.getElementById('bringing-name-input').focus(), 100);
+};
+window.openEditBringing = function(idx) {
+  editingBringingIdx = idx;
+  document.getElementById('bringing-modal-title').textContent = "Edit entry";
+  document.getElementById('bringing-name-input').value = bringing[idx].name;
+  document.getElementById('bringing-what-input').value = bringing[idx].what;
+  document.getElementById('bringing-modal').classList.add('open');
+};
+window.saveBringing = function() {
+  const name = document.getElementById('bringing-name-input').value.trim();
+  const what = document.getElementById('bringing-what-input').value.trim();
+  if (!name || !what) return;
+  const arr = [...bringing];
+  if (editingBringingIdx !== null) arr[editingBringingIdx] = { name, what };
+  else arr.push({ name, what });
+  db.ref(PATHS.bringing).set(arr);
+  closeModal('bringing-modal');
+};
+window.deleteBringing = function(idx) {
+  if (!confirm('Remove entry?')) return;
+  const arr = [...bringing];
+  arr.splice(idx, 1);
+  db.ref(PATHS.bringing).set(arr);
+};
+
+// ---- manage / edit items ----
+function renderManage() {
+  const container = document.getElementById('manage-container');
+  let html = '';
+  shopData.forEach((cat, ci) => {
+    html += `<div class="manage-card">
+      <div class="manage-cat-head">
+        <span class="manage-cat-name">${cat.cat}</span>
+        <div class="manage-cat-actions">
+          <button class="btn-sm" onclick="openAddItem(${ci})">+ Item</button>
+          <button class="btn-sm danger" onclick="deleteCategory(${ci})">Del cat</button>
+        </div>
+      </div>`;
+    if (!cat.items || cat.items.length === 0) {
+      html += `<div style="padding:12px 14px; font-size:12px; color:var(--muted);">No items yet</div>`;
+    }
+    (cat.items || []).forEach((item, ii) => {
+      html += `<div class="manage-item">
+        <div class="manage-item-info">
+          <div class="manage-item-name">${item.name}</div>
+          <div class="manage-item-qty">${item.qty || ''} ${item.qty && item.tag ? '·' : ''} ${item.tag}</div>
+        </div>
+        <div class="manage-item-actions">
+          <button class="btn-icon" onclick="openEditItem(${ci},${ii})">✏️</button>
+          <button class="btn-icon del" onclick="deleteItem(${ci},${ii})">🗑</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function populateCatSelect(selectedIdx) {
+  const sel = document.getElementById('modal-cat');
+  sel.innerHTML = shopData.map((c, i) =>
+    `<option value="${i}" ${i === selectedIdx ? 'selected' : ''}>${c.cat}</option>`
+  ).join('');
+}
+
+window.openAddItem = function(catIdx) {
+  editingItem = null;
+  document.getElementById('modal-title').textContent = 'Add item';
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-qty').value = '';
+  document.getElementById('modal-tag').value = "Sam's";
+  populateCatSelect(catIdx);
+  document.getElementById('item-modal').classList.add('open');
+  setTimeout(() => document.getElementById('modal-name').focus(), 100);
+};
+
+window.openEditItem = function(catIdx, itemIdx) {
+  editingItem = { catIdx, itemIdx };
+  const item = shopData[catIdx].items[itemIdx];
+  document.getElementById('modal-title').textContent = 'Edit item';
+  document.getElementById('modal-name').value = item.name;
+  document.getElementById('modal-qty').value = item.qty || '';
+  document.getElementById('modal-tag').value = item.tag;
+  populateCatSelect(catIdx);
+  document.getElementById('item-modal').classList.add('open');
+};
+
+window.saveItem = function() {
+  const name = document.getElementById('modal-name').value.trim();
+  if (!name) return;
+  const qty = document.getElementById('modal-qty').value.trim();
+  const tag = document.getElementById('modal-tag').value;
+  const catIdx = parseInt(document.getElementById('modal-cat').value);
+  const newData = JSON.parse(JSON.stringify(shopData));
+
+  if (editingItem) {
+    if (editingItem.catIdx !== catIdx) {
+      newData[editingItem.catIdx].items.splice(editingItem.itemIdx, 1);
+      newData[catIdx].items.push({ name, qty, tag });
+    } else {
+      newData[catIdx].items[editingItem.itemIdx] = { name, qty, tag };
+    }
+  } else {
+    newData[catIdx].items.push({ name, qty, tag });
+  }
+  db.ref(PATHS.shopData).set(newData);
+  db.ref(PATHS.checked).set({});
+  closeModal('item-modal');
+};
+
+window.deleteItem = function(catIdx, itemIdx) {
+  if (!confirm('Delete "' + shopData[catIdx].items[itemIdx].name + '"?')) return;
+  const newData = JSON.parse(JSON.stringify(shopData));
+  newData[catIdx].items.splice(itemIdx, 1);
+  db.ref(PATHS.shopData).set(newData);
+  db.ref(PATHS.checked).set({});
+};
+
+window.deleteCategory = function(catIdx) {
+  if (!confirm('Delete category "' + shopData[catIdx].cat + '" and all its items?')) return;
+  const newData = JSON.parse(JSON.stringify(shopData));
+  newData.splice(catIdx, 1);
+  db.ref(PATHS.shopData).set(newData);
+  db.ref(PATHS.checked).set({});
+};
+
+window.addCategory = function() {
+  const input = document.getElementById('new-cat-input');
+  const name = input.value.trim();
+  if (!name) return;
+  const newData = JSON.parse(JSON.stringify(shopData));
+  newData.push({ cat: name, items: [] });
+  db.ref(PATHS.shopData).set(newData);
+  input.value = '';
+};
+
+window.closeModal = function(id) {
+  document.getElementById(id).classList.remove('open');
+};
+
+// close on overlay tap
+['item-modal','slot-modal','bbqonly-modal','bringing-modal','settings-modal','expense-modal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) closeModal(id);
+  });
+});
+
+// ---- expenses ----
+function getAllPeople() {
+  const boatNames = slots.filter(s => s && s.name).map(s => s.name);
+  const bbqNames = bbqOnly.map(p => p.name);
+  const all = [...new Set([...boatNames, ...bbqNames])];
+  return { boatNames, bbqNames, all };
+}
+
+function getPeopleForSplit(splitType) {
+  const { boatNames, bbqNames, all } = getAllPeople();
+  if (splitType === 'boat') return boatNames;
+  if (splitType === 'bbqonly') return bbqNames;
+  return all; // 'all'
+}
+
+function renderExpenses() {
+  const list = document.getElementById('exp-list');
+  const splitLabel = { all: 'Everyone', boat: 'Boat only', bbqonly: 'BBQ-only' };
+
+  if (!expenses.length) {
+    list.innerHTML = '<div class="empty-state">No expenses yet</div>';
+    document.getElementById('exp-total-label').textContent = '$0.00 total';
+    document.getElementById('exp-summary-list').innerHTML = '<div class="empty-state">Add expenses to see the breakdown</div>';
     return;
   }
-  state.streaming = false;
-  state.awaitingOk = false;
-  $('runnerLabel').textContent = 'Done';
-  setTimeout(() => $('runner').style.display = 'none', 2500);
-}
-function updateProgress() {
-  const total = state.streamLines.length;
-  const done = state.streamIdx;
-  const pct = total ? Math.round(done/total*100) : 0;
-  $('progFill').style.width = pct + '%';
-  $('progLines').textContent = `${done} / ${total} lines`;
-  $('progPct').textContent = pct + '%';
-}
-$('runBtn').addEventListener('click', async () => {
-  if (!state.connected) return;
-  const text = $('gcode').value || generateGcode();
-  $('gcode').value = text;
-  if (!confirm('Send this G-code to the printer now?')) return;
-  state.streamLines = text.split('\n');
-  state.streamIdx = 0;
-  state.streaming = true;
-  $('runner').style.display = 'block';
-  $('runnerLabel').textContent = 'Streaming…';
-  updateProgress();
-  sendNextStreamLine();
-});
-$('stopBtn').addEventListener('click', async () => {
-  state.streaming = false;
-  state.awaitingOk = false;
-  $('runnerLabel').textContent = 'Stopped';
-  await sendLine('G91');
-  await sendLine('G1 Z5 F1500');
-  await sendLine('G90');
-});
 
-// MAIN HANDLERS
-$('connectBtn').addEventListener('click', connect);
-$('disconnectBtn').addEventListener('click', disconnect);
-$('sendCmdBtn').addEventListener('click', () => {
-  const v = $('cmdInput').value.trim();
-  if (v) { sendLine(v); $('cmdInput').value = ''; }
-});
-$('cmdInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') $('sendCmdBtn').click();
-});
-$('clearLog').addEventListener('click', () => $('console').innerHTML = '');
+  list.innerHTML = expenses.map((e, i) => `
+    <div class="exp-item">
+      <div class="exp-info">
+        <div class="exp-name">${e.desc}</div>
+        <div class="exp-meta">Paid by <strong>${e.paidBy}</strong> · ${splitLabel[e.split] || e.split}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="exp-amount">$${parseFloat(e.amount).toFixed(2)}</span>
+        <button class="btn-icon" onclick="openEditExpense(${i})">✏️</button>
+        <button class="btn-icon del" onclick="deleteExpense(${i})">🗑</button>
+      </div>
+    </div>`).join('');
 
-$('zeroBtn').addEventListener('click', async () => {
-  state.zZeroSet = true;
-  $('zeroBtn').classList.add('active');
-  $('zeroBtn').textContent = '✓ Z = 0 captured (click to re-arm)';
-  $('zeroState').classList.add('show');
-  if (state.connected) {
-    if (confirm('Also send G92 Z0 to the printer right now?')) {
-      await sendLine('G92 Z0');
-      await sendLine('M114');
+  // total
+  const total = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+  document.getElementById('exp-total-label').textContent = '$' + total.toFixed(2) + ' total';
+
+  // build per-person ledger
+  const ledger = {}; // name -> { paid, owes }
+  const { all } = getAllPeople();
+  all.forEach(n => { ledger[n] = { paid: 0, owes: 0 }; });
+
+  expenses.forEach(e => {
+    const payer = e.paidBy.trim();
+    const amt = parseFloat(e.amount || 0);
+    const people = getPeopleForSplit(e.split).filter(p => p);
+    if (!people.length) return;
+    const share = amt / people.length;
+
+    if (!ledger[payer]) ledger[payer] = { paid: 0, owes: 0 };
+    ledger[payer].paid += amt;
+
+    people.forEach(p => {
+      if (!ledger[p]) ledger[p] = { paid: 0, owes: 0 };
+      ledger[p].owes += share;
+    });
+  });
+
+  const names = Object.keys(ledger).sort();
+  if (!names.length) {
+    document.getElementById('exp-summary-list').innerHTML = '<div class="empty-state">Add people to boat/BBQ list first</div>';
+    return;
+  }
+
+  document.getElementById('exp-summary-list').innerHTML = names.map(name => {
+    const { paid, owes } = ledger[name];
+    const net = owes - paid; // positive = owes money, negative = is owed money
+    let statusHtml;
+    if (Math.abs(net) < 0.01) {
+      statusHtml = `<span class="summary-even">All even ✓</span>`;
+    } else if (net > 0) {
+      statusHtml = `<span class="summary-owes">Owes $${net.toFixed(2)}</span>`;
+    } else {
+      statusHtml = `<span class="summary-paid">Gets back $${Math.abs(net).toFixed(2)}</span>`;
     }
-  }
-});
-
-$('generateBtn').addEventListener('click', () => { $('gcode').value = generateGcode(); });
-$('copyBtn').addEventListener('click', async () => {
-  const text = $('gcode').value || generateGcode();
-  $('gcode').value = text;
-  try {
-    await navigator.clipboard.writeText(text);
-    $('copyBtn').textContent = 'Copied ✓';
-    setTimeout(()=> $('copyBtn').textContent = 'Copy', 1200);
-  } catch {
-    $('gcode').select();
-    document.execCommand('copy');
-  }
-});
-$('downloadBtn').addEventListener('click', () => {
-  const text = $('gcode').value || generateGcode();
-  const blob = new Blob([text], {type:'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `channels_${Date.now()}.gcode`; a.click();
-  URL.revokeObjectURL(url);
-});
-
-['lenX','zPrint','zTravel','feed','startY'].forEach(id => {
-  $(id).addEventListener('input', updateAll);
-});
-
-// Resize handler with debounce + ResizeObserver for reliable canvas sizing
-let resizeTimer;
-function scheduleRedraw() {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(drawPreview, 60);
-}
-window.addEventListener('resize', scheduleRedraw);
-
-function updateAll() { updateStats(); drawPreview(); }
-
-// INIT
-renderChannels();
-renderProgButtons();
-updateStats();
-$('gcode').value = generateGcode();
-setConnState(false);
-logLine('Channel G-code Generator ready. Plug in printer and press Connect Printer (default 9600 baud).', 'sys');
-if (!hasSerial) logLine('Browser does not support direct connection. Use Chrome or Edge.', 'sys');
-
-// Use ResizeObserver on the preview wrapper so canvas always matches its container
-const previewWrap = document.querySelector('.preview-wrap');
-if (previewWrap && 'ResizeObserver' in window) {
-  const ro = new ResizeObserver(() => scheduleRedraw());
-  ro.observe(previewWrap);
+    return `<div class="summary-row">
+      <div>
+        <div class="summary-name">${name}</div>
+        <div class="summary-detail">Paid $${paid.toFixed(2)} · Share $${owes.toFixed(2)}</div>
+      </div>
+      ${statusHtml}
+    </div>`;
+  }).join('');
 }
 
-// Trigger initial draw after DOM has fully laid out
-window.addEventListener('load', () => {
-  requestAnimationFrame(() => requestAnimationFrame(drawPreview));
-});
-// Also a fallback
-setTimeout(drawPreview, 100);
-setTimeout(drawPreview, 300);
+window.openAddExpense = function() {
+  editingExpenseIdx = null;
+  document.getElementById('exp-modal-title').textContent = 'Add expense';
+  document.getElementById('exp-paidby').value = '';
+  document.getElementById('exp-desc').value = '';
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-split').value = 'all';
+  document.getElementById('expense-modal').classList.add('open');
+  setTimeout(() => document.getElementById('exp-paidby').focus(), 100);
+};
+
+window.openEditExpense = function(idx) {
+  editingExpenseIdx = idx;
+  const e = expenses[idx];
+  document.getElementById('exp-modal-title').textContent = 'Edit expense';
+  document.getElementById('exp-paidby').value = e.paidBy;
+  document.getElementById('exp-desc').value = e.desc;
+  document.getElementById('exp-amount').value = e.amount;
+  document.getElementById('exp-split').value = e.split;
+  document.getElementById('expense-modal').classList.add('open');
+};
+
+window.saveExpense = function() {
+  const paidBy = document.getElementById('exp-paidby').value.trim();
+  const desc = document.getElementById('exp-desc').value.trim();
+  const amount = parseFloat(document.getElementById('exp-amount').value);
+  const split = document.getElementById('exp-split').value;
+  if (!paidBy || !desc || isNaN(amount) || amount <= 0) return;
+  const arr = [...expenses];
+  const entry = { paidBy, desc, amount, split };
+  if (editingExpenseIdx !== null) arr[editingExpenseIdx] = entry;
+  else arr.push(entry);
+  db.ref(PATHS.expenses).set(arr);
+  closeModal('expense-modal');
+};
+
+window.deleteExpense = function(idx) {
+  if (!confirm('Delete "' + expenses[idx].desc + '"?')) return;
+  const arr = [...expenses];
+  arr.splice(idx, 1);
+  db.ref(PATHS.expenses).set(arr);
+};
+
+
 </script>
-
 </body>
 </html>
