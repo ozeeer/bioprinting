@@ -1,1767 +1,1276 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="color-scheme" content="light">
-<title>Channel G-code Generator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<title>MEW Scaffold G-Code Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* ============================================================
-     DESIGN TOKENS — single source of truth
-     ============================================================ */
   :root {
-    /* Colors */
-    --bg:          #f4f3ee;
-    --paper:       #ffffff;
-    --panel:       #ebe9e0;
-    --border:      #d4d0c2;
-    --border-soft: #e2dfd0;
-    --ink:         #14171a;
-    --ink-2:       #3a3d42;
-    --ink-dim:     #6c6f74;
-    --ink-faint:   #9b9890;
-    --accent:      #c14318;
-    --accent-soft: #f8e2d8;
-    --good:        #2c6b3f;
-    --good-soft:   #dfeee3;
-    --warn:        #b04a08;
-    --warn-soft:   #fceadb;
-    --slide-fill:  #eaedf0;
-    --slide-edge:  #aab1b8;
+    --bg: #f5f5f0;
+    --surface: #ffffff;
+    --surface2: #f0f0eb;
+    --border: #d4d4cc;
+    --accent: #0066cc;
+    --accent2: #7c3aed;
+    --accent3: #059669;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --warn: #d97706;
+    --layer-colors: #0066cc, #7c3aed, #059669, #d97706, #dc2626, #db2777, #65a30d, #ea580c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 14px; }
 
-```
-/* Type scale */
---t-xs:   11px;
---t-sm:   12px;
---t-base: 13px;
---t-md:   14px;
---t-lg:   16px;
---t-xl:   20px;
---t-2xl:  26px;
---t-3xl:  32px;
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-/* Spacing scale */
---s-1:  4px;
---s-2:  8px;
---s-3:  12px;
---s-4:  16px;
---s-5:  20px;
---s-6:  24px;
---s-8:  32px;
+  /* Grid noise background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,102,204,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,102,204,0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
 
-/* Fonts — robust fallback stacks so the page looks correct
-   even if Google Fonts is blocked, slow, or fails to load
-   (e.g. GitHub Pages with strict network conditions). */
---font-ui:   'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
---font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, 'Courier New', monospace;
+  .app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    grid-template-rows: 60px 1fr;
+    height: 100vh;
+    max-height: 100vh;
+  }
 
-/* Heights */
---h-header: 60px;
---h-footer: 28px;
-```
+  /* ---- HEADER ---- */
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(245,245,240,0.95);
+    backdrop-filter: blur(10px);
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo-mark {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    flex-shrink: 0;
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(0,102,204,0.5)); }
+    50% { filter: drop-shadow(0 0 12px rgba(0,102,204,0.8)); }
+  }
+  .app-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+  .app-title span { color: var(--accent); }
+  .header-tag {
+    font-size: 0.65rem;
+    background: rgba(0,102,204,0.1);
+    border: 1px solid rgba(0,102,204,0.3);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .btn-download {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .btn-download:hover { background: #0055aa; transform: translateY(-1px); }
+  .btn-download:active { transform: translateY(0); }
 
-}
+  /* ---- SIDEBAR ---- */
+  .sidebar {
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
 
-- { box-sizing: border-box; margin: 0; padding: 0; }
+  .section {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--border), transparent);
+  }
 
-html, body {
-background: var(–bg);
-color: var(–ink);
-color-scheme: light;
-font-family: var(–font-ui);
-font-size: var(–t-base);
-line-height: 1.5;
-height: 100vh;
-overflow: hidden;
--webkit-font-smoothing: antialiased;
--moz-osx-font-smoothing: grayscale;
-}
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .field-row.single { grid-template-columns: 1fr; }
+  .field-row.triple { grid-template-columns: 1fr 1fr 1fr; }
 
-/* ============================================================
-HEADER
-============================================================ */
-header {
-height: var(–h-header);
-padding: 0 var(–s-6);
-border-bottom: 1px solid var(–border);
-display: flex;
-justify-content: space-between;
-align-items: center;
-gap: var(–s-4);
-background: var(–paper);
-flex-shrink: 0;
-}
-.brand h1 {
-font-family: var(–font-ui);
-font-weight: 600;
-font-size: var(–t-lg);
-letter-spacing: -0.01em;
-line-height: 1.1;
-color: var(–ink);
-}
-.brand h1 span { color: var(–accent); }
-.brand .subtitle {
-color: var(–ink-dim);
-font-size: var(–t-xs);
-margin-top: 2px;
-font-weight: 400;
-}
-.conn-bar {
-display: flex;
-align-items: center;
-gap: var(–s-3);
-background: var(–bg);
-border: 1px solid var(–border);
-border-radius: 4px;
-padding: 6px var(–s-3);
-}
-.conn-led {
-width: 8px; height: 8px;
-border-radius: 50%;
-background: #c5c5c5;
-transition: background 0.2s, box-shadow 0.2s;
-}
-.conn-led.on {
-background: var(–good);
-box-shadow: 0 0 0 3px rgba(44, 107, 63, 0.18);
-}
-.conn-led.err { background: var(–accent); }
-.conn-state {
-font-size: var(–t-sm);
-color: var(–ink-2);
-min-width: 100px;
-font-weight: 500;
-}
-.conn-bar .baud-group {
-display: flex;
-align-items: center;
-gap: 6px;
-font-size: var(–t-xs);
-color: var(–ink-dim);
-}
-.conn-bar select {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-padding: 5px 8px;
-font-family: var(–font-ui);
-font-size: var(–t-sm);
-color: var(–ink);
-cursor: pointer;
-font-weight: 500;
-}
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  input[type="number"], input[type="text"], select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-/* ============================================================
-LAYOUT
-============================================================ */
-main {
-display: grid;
-grid-template-columns: 360px 1fr 340px;
-height: calc(100vh - var(–h-header) - var(–h-footer));
-gap: 1px;
-background: var(–border);
-}
-@media (max-width: 1400px) {
-main { grid-template-columns: 340px 1fr 320px; }
-}
-@media (max-width: 1100px) {
-main { grid-template-columns: 320px 1fr; }
-.col-toolhead { display: none; }
-}
-.col {
-background: var(–bg);
-overflow-y: auto;
-display: flex;
-flex-direction: column;
-min-width: 0;
-}
+  /* Layer angle rows */
+  .layer-angles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .layer-angle-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .layer-num {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-align: right;
+    font-weight: 700;
+  }
+  .layer-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+  .btn-small {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 24px; height: 24px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s;
+    flex-shrink: 0;
+    font-family: monospace;
+  }
+  .btn-small:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-small.danger:hover { border-color: #ef4444; color: #ef4444; }
 
-/* ============================================================
-TYPOGRAPHY (consistent scale)
-============================================================ */
-h2 {
-font-family: var(–font-ui);
-font-weight: 600;
-font-size: var(–t-md);
-color: var(–ink);
-display: flex;
-align-items: center;
-gap: var(–s-2);
-margin-bottom: var(–s-1);
-}
-h2 .num {
-color: var(–accent);
-font-weight: 600;
-font-size: var(–t-sm);
-font-family: var(–font-mono);
-}
-p.hint {
-color: var(–ink-dim);
-font-size: var(–t-sm);
-margin-bottom: var(–s-3);
-line-height: 1.5;
-}
-hr {
-border: none;
-border-top: 1px solid var(–border-soft);
-margin: var(–s-4) 0;
-}
-label {
-display: block;
-font-size: var(–t-xs);
-font-weight: 500;
-color: var(–ink-dim);
-margin-bottom: 5px;
-letter-spacing: 0.01em;
-}
-label .max {
-color: var(–ink-faint);
-font-weight: 400;
-margin-left: 6px;
-}
+  .btn-add {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    padding: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+  }
+  .btn-add:hover { border-color: var(--accent); color: var(--accent); }
 
-/* ============================================================
-INPUTS — uniform
-============================================================ */
-input[type=“number”], input[type=“text”], select, textarea {
-width: 100%;
-background: var(–paper);
-border: 1px solid var(–border);
-color: var(–ink);
-padding: 8px 10px;
-font-family: var(–font-mono);
-font-size: var(–t-sm);
-border-radius: 3px;
-transition: border-color 0.12s, box-shadow 0.12s;
-}
-input:focus, select:focus, textarea:focus {
-outline: none;
-border-color: var(–accent);
-box-shadow: 0 0 0 2px var(–accent-soft);
-}
-input.invalid {
-border-color: var(–accent);
-background: var(–accent-soft);
-}
+  .gcode-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .stat-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+  }
+  .stat-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-value { font-size: 1rem; font-weight: 700; color: var(--accent); margin-top: 2px; font-family: 'Syne', sans-serif; }
 
-.field { margin-bottom: var(–s-3); }
-.row { display: grid; grid-template-columns: 1fr 1fr; gap: var(–s-2); }
+  /* ---- MAIN PANEL ---- */
+  .main-panel {
+    display: grid;
+    grid-template-rows: 1fr 200px;
+    overflow: hidden;
+    background: var(--bg);
+  }
 
-/* ============================================================
-BUTTONS — single uniform system
-============================================================ */
-button {
-font-family: var(–font-ui);
-font-weight: 500;
-cursor: pointer;
-border: 1px solid var(–border);
-background: var(–paper);
-color: var(–ink);
-padding: 8px 12px;
-font-size: var(–t-sm);
-border-radius: 3px;
-transition: all 0.12s;
-height: 34px;
-display: inline-flex;
-align-items: center;
-justify-content: center;
-gap: 6px;
-white-space: nowrap;
-}
-button:hover:not(:disabled) {
-border-color: var(–ink);
-background: var(–paper);
-}
-button:active:not(:disabled) { transform: scale(0.98); }
-button:disabled {
-opacity: 0.45;
-cursor: not-allowed;
-}
-button.primary {
-background: var(–ink);
-color: var(–paper);
-border-color: var(–ink);
-font-weight: 600;
-}
-button.primary:hover:not(:disabled) {
-background: var(–ink-2);
-border-color: var(–ink-2);
-}
-button.accent {
-background: var(–accent);
-color: var(–paper);
-border-color: var(–accent);
-font-weight: 600;
-}
-button.accent:hover:not(:disabled) {
-background: #a4360f;
-border-color: #a4360f;
-}
-button.ghost-accent {
-background: transparent;
-border: 1px dashed var(–accent);
-color: var(–accent);
-width: 100%;
-font-weight: 500;
-}
-button.ghost-accent:hover:not(:disabled) {
-background: var(–accent-soft);
-border-style: solid;
-}
-button.ghost-accent.active {
-border-style: solid;
-background: var(–good-soft);
-border-color: var(–good);
-color: var(–good);
-}
-button.small {
-padding: 4px 10px;
-font-size: var(–t-xs);
-height: 26px;
-}
+  /* Visualization */
+  .viz-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #fafaf7;
+    border-bottom: 1px solid var(--border);
+  }
+  .viz-controls {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+  }
+  .viz-btn {
+    background: rgba(245,245,240,0.92);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 32px; height: 32px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    font-family: monospace;
+    backdrop-filter: blur(4px);
+  }
+  .viz-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .viz-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,102,204,0.08); }
 
-/* ============================================================
-LEFT COLUMN
-============================================================ */
-.col-left { display: flex; flex-direction: column; }
-.config-section {
-padding: var(–s-5) var(–s-5);
-flex: 1;
-overflow-y: auto;
-}
+  .viz-label {
+    position: absolute;
+    bottom: 10px;
+    left: 16px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .viz-layer-legend {
+    position: absolute;
+    bottom: 10px;
+    right: 12px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 300px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.6rem;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
 
-.channels-list {
-margin-top: var(–s-1);
-max-height: 140px;
-overflow-y: auto;
-}
-.channel-row {
-display: grid;
-grid-template-columns: 24px 1fr 32px;
-gap: 6px;
-align-items: center;
-margin-bottom: 5px;
-}
-.channel-row .idx {
-color: var(–ink-faint);
-font-size: var(–t-xs);
-font-family: var(–font-mono);
-text-align: right;
-}
-.channel-row input { padding: 6px 9px; }
-.channel-row .remove {
-background: transparent;
-border: 1px solid var(–border);
-color: var(–ink-faint);
-padding: 0;
-height: 30px;
-font-size: 16px;
-line-height: 1;
-}
-.channel-row .remove:hover {
-color: var(–accent);
-border-color: var(–accent);
-}
-.add-channel {
-width: 100%;
-margin-top: var(–s-1);
-border-style: dashed;
-color: var(–ink-dim);
-background: transparent;
-}
-.add-channel:hover:not(:disabled) {
-color: var(–accent);
-border-color: var(–accent);
-}
+  canvas#vizCanvas {
+    display: block;
+    cursor: grab;
+  }
+  canvas#vizCanvas:active { cursor: grabbing; }
 
-.stats {
-margin-top: var(–s-3);
-padding: var(–s-3);
-background: var(–paper);
-border: 1px solid var(–border-soft);
-border-left: 3px solid var(–accent);
-border-radius: 0 3px 3px 0;
-font-size: var(–t-sm);
-}
-.stat-row {
-display: flex;
-justify-content: space-between;
-padding: 2px 0;
-}
-.stat-row .label { color: var(–ink-dim); }
-.stat-row .val {
-color: var(–ink);
-font-weight: 600;
-font-family: var(–font-mono);
-}
+  /* G-code output */
+  .gcode-output {
+    display: grid;
+    grid-template-rows: 36px 1fr;
+    overflow: hidden;
+  }
+  .gcode-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .tab {
+    padding: 0 20px;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    font-family: 'Space Mono', monospace;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
 
-.pill {
-display: inline-block;
-padding: 2px 9px;
-background: var(–accent-soft);
-color: var(–accent);
-font-size: var(–t-xs);
-border-radius: 10px;
-font-weight: 500;
-}
-.pill.dim { background: var(–panel); color: var(–ink-dim); }
-.pill.good { background: var(–good-soft); color: var(–good); }
+  .tab-content {
+    overflow: hidden;
+    display: none;
+  }
+  .tab-content.active { display: block; }
 
-.alert {
-padding: 10px 12px;
-background: var(–warn-soft);
-border-left: 2px solid var(–warn);
-color: var(–warn);
-font-size: var(–t-sm);
-margin: var(–s-2) 0;
-display: none;
-border-radius: 0 3px 3px 0;
-}
-.alert.show { display: block; }
-.alert.good {
-background: var(–good-soft);
-border-left-color: var(–good);
-color: var(–good);
-}
+  pre#gcodeText {
+    padding: 10px 16px;
+    font-size: 0.72rem;
+    line-height: 1.7;
+    overflow: auto;
+    height: 100%;
+    background: #fefefe;
+    color: #333;
+    white-space: pre;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .gc-comment { color: #9ca3af; }
+  .gc-movement { color: #1d4ed8; }
+  .gc-temp { color: #b45309; }
+  .gc-axo { color: #065f46; }
+  .gc-misc { color: #6d28d9; }
 
-.browser-warn {
-padding: 10px 12px;
-background: var(–warn-soft);
-border: 1px solid var(–warn);
-border-radius: 3px;
-color: var(–warn);
-font-size: var(–t-sm);
-margin-bottom: var(–s-3);
-display: none;
-}
-.browser-warn.show { display: block; }
-
-/* G-code section */
-.gcode-section {
-border-top: 1px solid var(–border);
-padding: var(–s-4) var(–s-5);
-background: var(–panel);
-flex-shrink: 0;
-display: flex;
-flex-direction: column;
-height: 360px;
-}
-textarea.gcode-area {
-flex: 1;
-padding: 10px 12px;
-font-family: var(–font-mono);
-font-size: var(–t-xs);
-line-height: 1.55;
-resize: none;
-margin-top: var(–s-2);
-min-height: 0;
-}
-.actions {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr 1.2fr;
-gap: var(–s-1);
-margin-top: var(–s-2);
-}
-
-/* Runner */
-.runner {
-margin-top: var(–s-2);
-padding: 10px 12px;
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-font-size: var(–t-sm);
-}
-.runner-header {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-bottom: 5px;
-font-weight: 500;
-}
-.progress-bar {
-height: 4px;
-background: var(–bg);
-border-radius: 2px;
-overflow: hidden;
-}
-.progress-fill {
-height: 100%;
-background: var(–accent);
-width: 0%;
-transition: width 0.2s;
-}
-.runner-stats {
-display: flex;
-justify-content: space-between;
-color: var(–ink-dim);
-font-size: var(–t-xs);
-margin-top: 4px;
-font-family: var(–font-mono);
-}
-
-/* ============================================================
-CENTER COLUMN
-============================================================ */
-.col-center { display: flex; flex-direction: column; }
-.preview-section {
-padding: var(–s-5) var(–s-6);
-display: flex;
-flex-direction: column;
-flex: 1;
-min-height: 0;
-}
-.preview-wrap {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-overflow: hidden;
-margin-top: var(–s-3);
-flex: 1;
-min-height: 280px;
-position: relative;
-}
-.preview-wrap canvas {
-display: block;
-width: 100%;
-height: 100%;
-}
-.preview-legend {
-display: flex;
-gap: var(–s-5);
-margin-top: var(–s-3);
-font-size: var(–t-xs);
-color: var(–ink-dim);
-flex-wrap: wrap;
-}
-.preview-legend > span {
-display: inline-flex;
-align-items: center;
-gap: 6px;
-}
-.swatch {
-display: inline-block;
-width: 16px;
-height: 2px;
-background: var(–ink);
-}
-.swatch.print { background: var(–accent); height: 2px; }
-.swatch.travel {
-border-top: 1.5px dashed var(–ink-faint);
-background: transparent;
-height: 0;
-}
-.swatch.slide {
-background: var(–slide-fill);
-border: 1px solid var(–slide-edge);
-height: 10px;
-width: 16px;
-}
-.swatch.work {
-border: 1.5px dashed var(–ink-faint);
-background: transparent;
-height: 10px;
-width: 16px;
-}
-
-/* Console section */
-.console-section {
-border-top: 1px solid var(–border);
-background: var(–panel);
-padding: var(–s-3) var(–s-6) var(–s-4);
-flex-shrink: 0;
-height: 220px;
-display: flex;
-flex-direction: column;
-}
-.console-header {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-bottom: var(–s-2);
-}
-.console-header h2 { margin: 0; }
-.console {
-background: #fafaf6;
-border: 1px solid var(–border);
-border-radius: 3px;
-padding: 8px 10px;
-font-family: var(–font-mono);
-font-size: var(–t-xs);
-flex: 1;
-overflow-y: auto;
-line-height: 1.55;
-min-height: 0;
-}
-.console .ln {
-white-space: pre-wrap;
-word-break: break-all;
-}
-.console .ln.tx { color: var(–ink); }
-.console .ln.tx::before { content: ’> ’; color: var(–accent); font-weight: 600; }
-.console .ln.rx { color: var(–ink-dim); }
-.console .ln.rx::before { content: ’< ’; color: var(–good); font-weight: 600; }
-.console .ln.sys { color: var(–ink-faint); font-style: italic; }
-.send-row {
-display: flex;
-gap: var(–s-2);
-margin-top: var(–s-2);
-}
-.send-row input { flex: 1; }
-
-/* ============================================================
-RIGHT COLUMN — TOOL HEAD
-============================================================ */
-.col-toolhead {
-background: var(–panel);
-}
-.toolhead-inner { padding: var(–s-5); }
-
-.pos-card {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-padding: var(–s-3) var(–s-4);
-margin-bottom: var(–s-4);
-}
-.pos-card .pos-label {
-font-size: var(–t-xs);
-color: var(–ink-dim);
-margin-bottom: var(–s-2);
-display: flex;
-justify-content: space-between;
-align-items: center;
-font-weight: 500;
-}
-.pos-grid {
-display: grid;
-grid-template-columns: repeat(3, 1fr);
-gap: var(–s-2);
-}
-.pos-cell {
-background: var(–bg);
-border: 1px solid var(–border-soft);
-border-radius: 3px;
-padding: 8px 10px;
-text-align: center;
-}
-.pos-cell .axis {
-font-size: var(–t-xs);
-color: var(–ink-faint);
-font-family: var(–font-mono);
-font-weight: 600;
-margin-bottom: 2px;
-}
-.pos-cell .val {
-font-family: var(–font-mono);
-font-size: var(–t-lg);
-font-weight: 600;
-color: var(–ink);
-font-variant-numeric: tabular-nums;
-}
-.pos-cell.z .val { color: var(–accent); }
-
-/* Jog */
-.jog-card {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 3px;
-padding: var(–s-4);
-margin-bottom: var(–s-4);
-}
-.jog-row {
-display: flex;
-gap: var(–s-3);
-align-items: flex-start;
-justify-content: center;
-}
-.jog-pad {
-display: grid;
-grid-template-columns: 44px 44px 44px;
-grid-template-rows: 44px 44px 44px;
-gap: var(–s-1);
-}
-.jog-pad button,
-.jog-z button {
-height: 44px;
-padding: 0;
-font-size: var(–t-sm);
-font-weight: 600;
-color: var(–ink-2);
-background: var(–bg);
-border: 1px solid var(–border);
-font-family: var(–font-mono);
-}
-.jog-pad button:hover:not(:disabled),
-.jog-z button:hover:not(:disabled) {
-background: var(–accent-soft);
-color: var(–accent);
-border-color: var(–accent);
-}
-.jog-pad .home,
-.jog-z .home {
-background: var(–paper);
-color: var(–ink-dim);
-font-size: var(–t-xs);
-font-family: var(–font-ui);
-}
-.jog-pad .empty {
-visibility: hidden;
-}
-.jog-z {
-display: grid;
-grid-template-rows: 44px 44px 44px;
-gap: var(–s-1);
-}
-.jog-z button { width: 56px; }
-
-.jog-section-label {
-font-size: var(–t-xs);
-color: var(–ink-dim);
-margin: var(–s-3) 0 5px;
-font-weight: 500;
-}
-.step-row {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr 1fr;
-gap: var(–s-1);
-}
-.step-row button {
-padding: 0;
-height: 30px;
-font-size: var(–t-sm);
-font-family: var(–font-mono);
-background: var(–bg);
-}
-.step-row button.active {
-background: var(–ink);
-color: var(–paper);
-border-color: var(–ink);
-}
-
-.quick-row {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr;
-gap: var(–s-1);
-margin-top: var(–s-3);
-}
-.quick-row button {
-padding: 0 4px;
-height: 30px;
-font-size: var(–t-xs);
-}
-
-/* Macros */
-.prog-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: var(–s-1);
-margin-top: var(–s-1);
-}
-.prog-btn {
-position: relative;
-padding: 8px 24px 8px 10px;
-text-align: left;
-background: var(–paper);
-border: 1px solid var(–border);
-font-size: var(–t-xs);
-color: var(–ink);
-overflow: hidden;
-text-overflow: ellipsis;
-white-space: nowrap;
-height: 32px;
-justify-content: flex-start;
-}
-.prog-btn:hover:not(:disabled) {
-border-color: var(–accent);
-color: var(–accent);
-}
-.prog-btn .x {
-position: absolute;
-top: 1px;
-right: 4px;
-font-size: 14px;
-color: var(–ink-faint);
-line-height: 1;
-padding: 2px 4px;
-border-radius: 2px;
-cursor: pointer;
-}
-.prog-btn .x:hover {
-color: var(–accent);
-background: var(–accent-soft);
-}
-.prog-add {
-grid-column: 1 / -1;
-border-style: dashed;
-color: var(–ink-dim);
-background: transparent;
-text-align: center;
-padding: 0;
-height: 32px;
-}
-.prog-add:hover:not(:disabled) {
-color: var(–accent);
-border-color: var(–accent);
-}
-
-/* Modal */
-.modal-bg {
-position: fixed;
-inset: 0;
-background: rgba(20, 20, 20, 0.5);
-display: none;
-align-items: center;
-justify-content: center;
-z-index: 100;
-}
-.modal-bg.show { display: flex; }
-.modal {
-background: var(–paper);
-border: 1px solid var(–border);
-border-radius: 6px;
-padding: var(–s-5);
-max-width: 480px;
-width: 90%;
-box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
-}
-.modal h3 {
-font-size: var(–t-lg);
-font-weight: 600;
-margin-bottom: var(–s-3);
-}
-.modal textarea {
-height: 120px;
-resize: vertical;
-}
-.modal-actions {
-display: flex;
-gap: var(–s-2);
-margin-top: var(–s-3);
-justify-content: flex-end;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(–border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(–ink-faint); }
-
-/* Footer */
-footer {
-height: var(–h-footer);
-border-top: 1px solid var(–border);
-background: var(–paper);
-display: flex;
-align-items: center;
-justify-content: space-between;
-padding: 0 var(–s-6);
-font-size: var(–t-xs);
-color: var(–ink-faint);
-flex-shrink: 0;
-}
-footer .sig {
-color: var(–ink-dim);
-}
-footer .sig em {
-color: var(–accent);
-font-style: italic;
-font-weight: 500;
-margin: 0 4px;
-}
-footer .sep {
-color: var(–border);
-margin: 0 var(–s-2);
-}
+  /* Responsive tweak */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 60px auto auto; height: auto; max-height: none; }
+    .sidebar { max-height: 60vh; }
+    .main-panel { grid-template-rows: 50vw 200px; }
+  }
 </style>
-
 </head>
 <body>
+<div class="app">
 
-<header>
-  <div class="brand">
-    <h1>Channel <span>G-code</span> Generator</h1>
-    <div class="subtitle">Parallel Microfluidic Channels · Microscope Slide</div>
-  </div>
-  <div class="conn-bar">
-    <div class="conn-led" id="led"></div>
-    <div class="conn-state" id="connState">Not connected</div>
-    <div class="baud-group">
-      <span>Baud</span>
-      <select id="baudSel" title="Baud rate">
-        <option value="9600" selected>9600</option>
-        <option value="115200">115200</option>
-        <option value="250000">250000</option>
-        <option value="57600">57600</option>
-        <option value="38400">38400</option>
-        <option value="19200">19200</option>
-      </select>
+  <!-- HEADER -->
+  <header>
+    <div class="logo-mark"></div>
+    <div class="app-title">MEW <span>Scaffold</span> Generator</div>
+    <div class="header-tag">Axolotl MEW</div>
+    <div class="header-right">
+      <button class="btn-download" onclick="downloadGcode()">
+        ↓ Download .gcode
+      </button>
     </div>
-    <button id="connectBtn" class="primary">Connect Printer</button>
-    <button id="disconnectBtn" disabled>Disconnect</button>
-  </div>
-</header>
+  </header>
 
-<main>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
 
-  <!-- LEFT COLUMN: CONFIG + GCODE -->
-
-  <section class="col col-left">
-    <div class="config-section">
-      <div class="browser-warn" id="browserWarn">
-        Direct printer connection requires Chrome or Edge. You can still generate and download G-code.
+    <!-- Scaffold Geometry -->
+    <div class="section">
+      <div class="section-title">Scaffold Geometry</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Width X (mm)</label>
+          <input type="number" id="scaffoldW" value="30" min="1" max="120" step="0.5" oninput="update()">
+        </div>
+        <div class="field">
+          <label>Height Y (mm)</label>
+          <input type="number" id="scaffoldH" value="30" min="1" max="80" step="0.5" oninput="update()">
+        </div>
       </div>
-
-```
-  <h2><span class="num">01</span>Reference Z</h2>
-  <p class="hint">Jog to top of petri dish, then capture as Z = 0.</p>
-  <button id="zeroBtn" class="ghost-accent">Set Z = 0 at current position</button>
-  <div id="zeroState" class="alert good">Z origin captured.</div>
-
-  <hr>
-
-  <h2><span class="num">02</span>Geometry</h2>
-  <p class="hint">Slide working area: 70 × 20 mm. Channels run along X.</p>
-
-  <div class="row">
-    <div class="field">
-      <label>Length X <span class="max">≤ 70</span></label>
-      <input type="number" id="lenX" value="50" min="1" max="70" step="0.1">
-    </div>
-    <div class="field">
-      <label>Print Z <span class="max">mm</span></label>
-      <input type="number" id="zPrint" value="0.3" min="0" max="25" step="0.05">
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="field">
-      <label>Travel Z <span class="max">mm</span></label>
-      <input type="number" id="zTravel" value="25" min="1" max="50" step="0.5">
-    </div>
-    <div class="field">
-      <label>Feedrate F</label>
-      <input type="number" id="feed" value="1000" min="50" max="5000" step="50">
-    </div>
-  </div>
-
-  <div class="field">
-    <label>Start Y <span class="max">first channel, mm</span></label>
-    <input type="number" id="startY" value="0" min="0" max="20" step="0.1">
-  </div>
-
-  <hr>
-
-  <h2><span class="num">03</span>Channels <span class="pill" id="countPill">1 channel</span></h2>
-  <p class="hint">First channel sits at Start Y. Each row adds another channel offset by spacing along Y.</p>
-
-  <div id="channelsList" class="channels-list"></div>
-  <button class="add-channel" id="addChannel">+ add channel</button>
-
-  <div class="alert" id="yAlert">Y position exceeds 20 mm slide width.</div>
-
-  <div class="stats">
-    <div class="stat-row"><span class="label">Channels</span><span class="val" id="sChan">1</span></div>
-    <div class="stat-row"><span class="label">Y span</span><span class="val" id="sYspan">0.0 mm</span></div>
-    <div class="stat-row"><span class="label">Print travel</span><span class="val" id="sPrint">50.0 mm</span></div>
-  </div>
-</div>
-
-<div class="gcode-section">
-  <h2><span class="num">04</span>G-code Output</h2>
-  <textarea class="gcode-area" id="gcode" spellcheck="false"></textarea>
-  <div class="actions">
-    <button id="generateBtn" class="primary">Generate</button>
-    <button id="copyBtn">Copy</button>
-    <button id="downloadBtn">Save</button>
-    <button id="runBtn" class="accent" disabled>▶ Send</button>
-  </div>
-  <div class="runner" id="runner" style="display:none;">
-    <div class="runner-header">
-      <span id="runnerLabel">Streaming…</span>
-      <button id="stopBtn" class="small">Stop</button>
-    </div>
-    <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
-    <div class="runner-stats">
-      <span id="progLines">0 / 0 lines</span>
-      <span id="progPct">0%</span>
-    </div>
-  </div>
-</div>
-```
-
-  </section>
-
-  <!-- CENTER COLUMN: PREVIEW + CONSOLE -->
-
-  <section class="col col-center">
-    <div class="preview-section">
-      <h2><span class="num">05</span>Preview</h2>
-      <p class="hint">Top-down view. Solid lines are print passes, dashed are travel returns.</p>
-      <div class="preview-wrap">
-        <canvas id="preview"></canvas>
+      <div class="field-row">
+        <div class="field">
+          <label>Fiber Spacing (mm)</label>
+          <input type="number" id="fiberSpacing" value="1.0" min="0.1" max="10" step="0.1" oninput="update()">
+        </div>
+        <div class="field">
+          <label>Layer Height (mm)</label>
+          <input type="number" id="layerHeight" value="0.1" min="0.01" max="1" step="0.01" oninput="update()">
+        </div>
       </div>
-      <div class="preview-legend">
-        <span><span class="swatch print"></span>Print pass</span>
-        <span><span class="swatch travel"></span>Travel</span>
-        <span><span class="swatch slide"></span>Slide 75 × 25</span>
-        <span><span class="swatch work"></span>Working area 70 × 20</span>
+      <div class="field-row">
+        <div class="field">
+          <label>Origin X (mm)</label>
+          <input type="number" id="originX" value="65" min="0" max="130" step="1" oninput="update()">
+        </div>
+        <div class="field">
+          <label>Origin Y (mm)</label>
+          <input type="number" id="originY" value="45" min="0" max="90" step="1" oninput="update()">
+        </div>
       </div>
     </div>
 
-```
-<div class="console-section">
-  <div class="console-header">
-    <h2><span class="num">06</span>Serial Console</h2>
-    <button id="clearLog" class="small">Clear</button>
-  </div>
-  <div class="console" id="console"></div>
-  <div class="send-row">
-    <input type="text" id="cmdInput" placeholder="Type G-code and press Enter (M114, G28, M105…)" disabled>
-    <button id="sendCmdBtn" disabled>Send</button>
-  </div>
-</div>
-```
-
-  </section>
-
-  <!-- RIGHT COLUMN: TOOL HEAD -->
-
-  <section class="col col-toolhead">
-    <div class="toolhead-inner">
-      <h2 style="justify-content: space-between;">
-        <span><span class="num">07</span>Tool Head</span>
-        <span class="pill dim" id="jogStatus">Offline</span>
-      </h2>
-      <p class="hint">Manual control. Connect printer to enable.</p>
-
-```
-  <div class="pos-card">
-    <div class="pos-label">
-      <span>Current position</span>
-      <button data-action="getPos" class="small" disabled>Refresh</button>
+    <!-- Layer Angles -->
+    <div class="section">
+      <div class="section-title">Layer Angles</div>
+      <div class="layer-angles-list" id="layerAnglesList"></div>
+      <button class="btn-add" onclick="addLayer()">+ Add Layer</button>
     </div>
-    <div class="pos-grid">
-      <div class="pos-cell"><div class="axis">X</div><div class="val" id="posX">—</div></div>
-      <div class="pos-cell"><div class="axis">Y</div><div class="val" id="posY">—</div></div>
-      <div class="pos-cell z"><div class="axis">Z</div><div class="val" id="posZ">—</div></div>
-    </div>
-  </div>
 
-  <div class="jog-card">
-    <div class="jog-row">
-      <div class="jog-pad">
-        <button class="empty" disabled></button>
-        <button class="jog-btn" data-axis="Y" data-dir="1" disabled>Y+</button>
-        <button class="empty" disabled></button>
-        <button class="jog-btn" data-axis="X" data-dir="-1" disabled>X−</button>
-        <button class="home" data-action="homeXY" disabled>⌂ XY</button>
-        <button class="jog-btn" data-axis="X" data-dir="1" disabled>X+</button>
-        <button class="empty" disabled></button>
-        <button class="jog-btn" data-axis="Y" data-dir="-1" disabled>Y−</button>
-        <button class="empty" disabled></button>
+    <!-- Printer Settings -->
+    <div class="section">
+      <div class="section-title">Printer Settings</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Print Speed (mm/min)</label>
+          <input type="number" id="printSpeed" value="900" min="10" max="5000" step="50" oninput="update()">
+        </div>
+        <div class="field">
+          <label>Travel Speed (mm/min)</label>
+          <input type="number" id="travelSpeed" value="1500" min="100" max="10000" step="100" oninput="update()">
+        </div>
       </div>
-      <div class="jog-z">
-        <button class="jog-btn" data-axis="Z" data-dir="1" disabled>Z+</button>
-        <button class="home" data-action="homeZ" disabled>⌂ Z</button>
-        <button class="jog-btn" data-axis="Z" data-dir="-1" disabled>Z−</button>
+      <div class="field-row">
+        <div class="field">
+          <label>Tool Temp (°C)</label>
+          <input type="number" id="toolTemp" value="120" min="0" max="400" step="5" oninput="update()">
+        </div>
+        <div class="field">
+          <label>Surface Temp (°C)</label>
+          <input type="number" id="surfaceTemp" value="0" min="0" max="100" step="5" oninput="update()">
+        </div>
       </div>
     </div>
 
-    <div class="jog-section-label">Step size (mm)</div>
-    <div class="step-row" id="stepRow">
-      <button data-step="0.1">0.1</button>
-      <button data-step="1" class="active">1</button>
-      <button data-step="5">5</button>
-      <button data-step="10">10</button>
+    <!-- MEW / Axolotl Settings -->
+    <div class="section">
+      <div class="section-title">MEW Settings</div>
+      <div class="field-row">
+        <div class="field">
+          <label>High Voltage (kV)</label>
+          <input type="number" id="hvVoltage" value="2" min="0" max="10" step="0.5" oninput="update()">
+        </div>
+        <div class="field">
+          <label>Surface Offset (mm)</label>
+          <input type="number" id="surfaceOffset" value="0" min="0" max="20" step="0.5" oninput="update()">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Extrusion Steps/mm</label>
+          <input type="number" id="extrusionSteps" value="400" min="1" max="2000" step="10" oninput="update()">
+        </div>
+        <div class="field">
+          <label>E value per move</label>
+          <input type="number" id="eValue" value="1" min="0.001" max="100" step="0.1" oninput="update()">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field" style="display:flex;flex-direction:row;align-items:center;gap:8px;padding-top:4px;">
+          <input type="checkbox" id="useHV" checked onchange="update()" style="width:16px;height:16px;accent-color:var(--accent);flex-shrink:0;">
+          <label style="text-transform:none;letter-spacing:0;">Enable High Voltage</label>
+        </div>
+        <div class="field" style="display:flex;flex-direction:row;align-items:center;gap:8px;padding-top:4px;">
+          <input type="checkbox" id="useInfExtr" checked onchange="update()" style="width:16px;height:16px;accent-color:var(--accent);flex-shrink:0;">
+          <label style="text-transform:none;letter-spacing:0;">Infinite Extrusion</label>
+        </div>
+      </div>
     </div>
 
-    <div class="jog-section-label">Jog feedrate (mm/min)</div>
-    <input type="number" id="jogFeed" value="1500" min="100" max="6000" step="100">
-
-    <div class="quick-row">
-      <button data-action="homeAll" disabled>Home All</button>
-      <button data-action="motorsOff" disabled>Motors Off</button>
-      <button data-action="setOrigin" disabled>Set Origin</button>
+    <!-- Wall Settings -->
+    <div class="section">
+      <div class="section-title">Perimeter Walls</div>
+      <div style="display:flex;flex-direction:row;align-items:center;gap:8px;margin-bottom:12px;">
+        <input type="checkbox" id="useWalls" onchange="toggleWallOptions();update()" style="width:16px;height:16px;accent-color:var(--accent);flex-shrink:0;">
+        <label style="text-transform:none;letter-spacing:0;font-size:0.75rem;color:var(--text);">Enable perimeter walls</label>
+      </div>
+      <div id="wallOptions" style="display:none;">
+        <div class="field-row">
+          <div class="field">
+            <label>Wall Count</label>
+            <input type="number" id="wallCount" value="2" min="1" max="10" step="1" oninput="update()">
+          </div>
+          <div class="field">
+            <label>Wall Spacing (mm)</label>
+            <input type="number" id="wallSpacing" value="0.5" min="0.05" max="5" step="0.05" oninput="update()">
+          </div>
+        </div>
+        <div style="font-size:0.65rem;color:var(--muted);line-height:1.5;margin-top:4px;">
+          Walls print each layer before infill, offset inward from the scaffold edge.
+        </div>
+      </div>
     </div>
-  </div>
 
-  <h2><span class="num">08</span>Macros</h2>
-  <p class="hint">Custom G-code shortcuts. Saved to this browser.</p>
-  <div class="prog-grid" id="progGrid"></div>
-</div>
-```
-
-  </section>
-
-</main>
-
-<footer>
-  <div class="sig">Ozbolat Lab <em>·</em> 2026 <em>·</em> made by Ozer</div>
-  <div>Channel G-code Generator</div>
-</footer>
-
-<div class="modal-bg" id="progModal">
-  <div class="modal">
-    <h3 id="modalTitle">New macro</h3>
-    <div class="field">
-      <label>Label</label>
-      <input type="text" id="progLabel" placeholder="e.g. Park nozzle">
+    <!-- Stats -->
+    <div class="section">
+      <div class="section-title">Estimated Stats</div>
+      <div class="gcode-stats">
+        <div class="stat-box"><div class="stat-label">Total Lines</div><div class="stat-value" id="statLines">--</div></div>
+        <div class="stat-box"><div class="stat-label">Layers</div><div class="stat-value" id="statLayers">--</div></div>
+        <div class="stat-box"><div class="stat-label">Fibers/Layer</div><div class="stat-value" id="statFibers">--</div></div>
+        <div class="stat-box"><div class="stat-label">Height (mm)</div><div class="stat-value" id="statHeight">--</div></div>
+      </div>
     </div>
-    <div class="field">
-      <label>G-code (one command per line)</label>
-      <textarea id="progCode" placeholder="G90&#10;G1 X0 Y0 Z25 F2000"></textarea>
+
+  </aside>
+
+  <!-- MAIN PANEL -->
+  <main class="main-panel">
+
+    <!-- Visualization -->
+    <div class="viz-area">
+      <div class="viz-controls">
+        <button class="viz-btn active" id="btnAllLayers" onclick="setVizMode('all')" title="Show all layers">≡</button>
+        <button class="viz-btn" id="btnOneLayer" onclick="setVizMode('single')" title="Show one layer">◻</button>
+        <button class="viz-btn" id="btnZoomIn" onclick="vizZoom(1.25)" title="Zoom in">+</button>
+        <button class="viz-btn" id="btnZoomOut" onclick="vizZoom(0.8)" title="Zoom out">−</button>
+        <button class="viz-btn" id="btnReset" onclick="vizResetView()" title="Reset view">⊙</button>
+      </div>
+
+      <div class="viz-layer-legend" id="vizLegend"></div>
+      <div class="viz-label" id="vizInfo">Scroll to zoom · Drag to pan</div>
+      <canvas id="vizCanvas"></canvas>
     </div>
-    <div class="modal-actions">
-      <button id="progCancel">Cancel</button>
-      <button id="progSave" class="primary">Save</button>
+
+    <!-- G-code output panel -->
+    <div class="gcode-output">
+      <div class="gcode-tabs">
+        <div class="tab active" onclick="switchTab('gcode')">G-Code Preview</div>
+        <div class="tab" onclick="switchTab('summary')">Summary</div>
+      </div>
+      <div class="tab-content active" id="tab-gcode">
+        <pre id="gcodeText"></pre>
+      </div>
+      <div class="tab-content" id="tab-summary">
+        <pre id="summaryText" style="padding:10px 16px;font-size:0.72rem;line-height:1.7;overflow:auto;height:100%;background:#fefefe;color:#333;"></pre>
+      </div>
     </div>
-  </div>
+
+  </main>
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
+// =============================================
+// STATE
+// =============================================
+const LAYER_COLORS = [
+  '#0066cc','#7c3aed','#059669','#d97706',
+  '#dc2626','#db2777','#65a30d','#ea580c',
+  '#0891b2','#0d9488','#9333ea','#c2410c'
+];
 
-const state = {
-  zZeroSet: false,
-  spacings: [1.0],
-  jogStep: 1,
-  port: null,
-  reader: null,
-  writer: null,
-  connected: false,
-  rxBuf: '',
-  streaming: false,
-  streamLines: [],
-  streamIdx: 0,
-  awaitingOk: false,
-  progButtons: JSON.parse(localStorage.getItem('progButtons') || 'null') || [
-    { label: 'Park (X0 Y0 Z25)', code: 'G90\nG1 Z25 F1500\nG1 X0 Y0 F2000' },
-    { label: 'Disable steppers', code: 'M84' },
-  ],
-  editingProgIdx: null,
-  pos: { X: null, Y: null, Z: null },
-};
+let layers = [
+  { angle: 45 },
+  { angle: 135 },
+];
 
-// CHANNELS
-function renderChannels() {
-  const list = $('channelsList');
+// Viz state
+let vizMode = 'all';
+let vizScale = 1;
+let vizOffX = 0;
+let vizOffY = 0;
+let isDragging = false;
+let dragStartX = 0, dragStartY = 0;
+let vizOffXStart = 0, vizOffYStart = 0;
+let currentGcode = '';
+let gcodeLines = [];
+
+// =============================================
+// LAYER ANGLE UI
+// =============================================
+function renderLayerList() {
+  const list = document.getElementById('layerAnglesList');
   list.innerHTML = '';
-  state.spacings.forEach((sp, i) => {
+  layers.forEach((l, i) => {
     const row = document.createElement('div');
-    row.className = 'channel-row';
+    row.className = 'layer-angle-row';
+    const color = LAYER_COLORS[i % LAYER_COLORS.length];
     row.innerHTML = `
-      <div class="idx">${(i+2).toString().padStart(2,'0')}</div>
-      <input type="number" min="0.05" max="20" step="0.05" value="${sp}" data-idx="${i}">
-      <button class="remove" data-rm="${i}">×</button>
+      <span class="layer-num" style="color:${color}">${i+1}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex:1;">
+        <span class="layer-dot" style="background:${color}"></span>
+        <input type="number" value="${l.angle}" min="0" max="360" step="5"
+          style="flex:1;"
+          oninput="layers[${i}].angle=parseFloat(this.value)||0;update();">
+        <span style="font-size:0.65rem;color:var(--muted);">°</span>
+      </div>
+      <button class="btn-small danger" onclick="removeLayer(${i})" title="Remove">×</button>
     `;
     list.appendChild(row);
   });
-  list.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('input', e => {
-      const idx = +e.target.dataset.idx;
-      const v = parseFloat(e.target.value);
-      if (!isNaN(v)) state.spacings[idx] = v;
-      updateAll();
-    });
-  });
-  list.querySelectorAll('.remove').forEach(btn => {
-    btn.addEventListener('click', e => {
-      const idx = +e.target.dataset.rm;
-      state.spacings.splice(idx, 1);
-      renderChannels();
-      updateAll();
-    });
-  });
-}
-$('addChannel').addEventListener('click', () => {
-  state.spacings.push(1.0);
-  renderChannels();
-  updateAll();
-});
-function getYPositions() {
-  const startY = parseFloat($('startY').value) || 0;
-  const ys = [startY];
-  let cur = startY;
-  state.spacings.forEach(sp => {
-    cur += (parseFloat(sp) || 0);
-    ys.push(cur);
-  });
-  return ys;
 }
 
-// STATS
-function updateStats() {
-  const ys = getYPositions();
-  const lenX = parseFloat($('lenX').value) || 0;
-  const nChan = ys.length;
-  const ySpan = ys[ys.length-1] - ys[0];
-  const printTravel = lenX * nChan;
-
-  $('sChan').textContent = nChan;
-  $('sYspan').textContent = ySpan.toFixed(2) + ' mm';
-  $('sPrint').textContent = printTravel.toFixed(1) + ' mm';
-  $('countPill').textContent = nChan + (nChan === 1 ? ' channel' : ' channels');
-
-  const yMax = Math.max(...ys), yMin = Math.min(...ys);
-  const xValid = lenX > 0 && lenX <= 70;
-  const yValid = yMax <= 20 && yMin >= 0;
-  $('lenX').classList.toggle('invalid', !xValid);
-  $('yAlert').classList.toggle('show', !yValid);
+function addLayer() {
+  const last = layers.length ? layers[layers.length-1].angle : 0;
+  layers.push({ angle: (last + 45) % 360 });
+  renderLayerList();
+  update();
 }
 
-// PREVIEW
-function drawPreview() {
-  const c = $('preview');
-  if (!c) return;
-  const wrap = c.parentElement;
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = wrap.clientWidth;
-  const cssH = wrap.clientHeight;
-  if (cssW === 0 || cssH === 0) return;
-
-  c.width = cssW * dpr;
-  c.height = cssH * dpr;
-  c.style.width = cssW + 'px';
-  c.style.height = cssH + 'px';
-
-  const ctx = c.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, cssW, cssH);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, cssW, cssH);
-
-  const margin = 60;
-  const slideMM_W = 75, slideMM_H = 25;
-  const availW = cssW - margin*2;
-  const availH = cssH - margin*2;
-  const scale = Math.min(availW / slideMM_W, availH / slideMM_H);
-  const slideW = slideMM_W * scale;
-  const slideH = slideMM_H * scale;
-  const ox = (cssW - slideW)/2;
-  const oy = (cssH - slideH)/2;
-  const X = mm => ox + mm * scale;
-  const Y = mm => oy + slideH - mm * scale;
-
-  // Grid
-  ctx.strokeStyle = 'rgba(0,0,0,0.04)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= 75; x += 5) {
-    ctx.beginPath(); ctx.moveTo(X(x), oy); ctx.lineTo(X(x), oy + slideH); ctx.stroke();
-  }
-  for (let y = 0; y <= 25; y += 5) {
-    ctx.beginPath(); ctx.moveTo(ox, Y(y)); ctx.lineTo(ox + slideW, Y(y)); ctx.stroke();
-  }
-
-  // Slide
-  ctx.fillStyle = '#eaedf0';
-  ctx.fillRect(ox, oy, slideW, slideH);
-  ctx.strokeStyle = '#aab1b8';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(ox, oy, slideW, slideH);
-
-  // Working area
-  ctx.setLineDash([4,4]);
-  ctx.strokeStyle = 'rgba(155, 152, 144, 0.8)';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(X(0), Y(20), 70*scale, 20*scale);
-  ctx.setLineDash([]);
-
-  // Axis labels
-  ctx.fillStyle = '#9b9890';
-  ctx.font = '11px "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-  ctx.fillText('X →', ox + slideW + 8, Y(0));
-  ctx.fillText('Y ↑', ox - 28, oy + 12);
-  ctx.fillText('0,0', ox - 24, Y(0) + 14);
-  ctx.fillText('75', ox + slideW - 12, oy + slideH + 16);
-  ctx.fillText('25', ox - 24, oy - 4);
-
-  // Channels
-  const ys = getYPositions();
-  const lenX = parseFloat($('lenX').value) || 0;
-  const xStart = 0, xEnd = lenX;
-
-  ys.forEach((yMM, i) => {
-    if (yMM < 0 || yMM > 20 || lenX <= 0 || lenX > 70) return;
-
-    // Travel from previous
-    if (i > 0) {
-      const prevY = ys[i-1];
-      ctx.setLineDash([4,4]);
-      ctx.strokeStyle = 'rgba(155, 152, 144, 0.8)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(X(xEnd), Y(prevY));
-      ctx.lineTo(X(xStart), Y(yMM));
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Print line
-    ctx.strokeStyle = '#c14318';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(X(xStart), Y(yMM));
-    ctx.lineTo(X(xEnd), Y(yMM));
-    ctx.stroke();
-
-    // Arrow
-    const ax = X(xEnd), ay = Y(yMM);
-    ctx.fillStyle = '#c14318';
-    ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - 8, ay - 4);
-    ctx.lineTo(ax - 8, ay + 4);
-    ctx.closePath();
-    ctx.fill();
-
-    // Label
-    ctx.fillStyle = '#6c6f74';
-    ctx.font = '11px "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(`#${i+1} Y=${yMM.toFixed(2)}`, X(xStart) - 8, Y(yMM) + 4);
-    ctx.textAlign = 'left';
-  });
+function removeLayer(i) {
+  if (layers.length <= 1) return;
+  layers.splice(i, 1);
+  renderLayerList();
+  update();
 }
 
+// =============================================
 // G-CODE GENERATION
+// =============================================
+function getParams() {
+  return {
+    W:         parseFloat(document.getElementById('scaffoldW').value) || 30,
+    H:         parseFloat(document.getElementById('scaffoldH').value) || 30,
+    spacing:   parseFloat(document.getElementById('fiberSpacing').value) || 1.0,
+    lh:        parseFloat(document.getElementById('layerHeight').value) || 0.1,
+    cx:        parseFloat(document.getElementById('originX').value) || 65,
+    cy:        parseFloat(document.getElementById('originY').value) || 45,
+    printSpeed: parseInt(document.getElementById('printSpeed').value) || 900,
+    travelSpeed: parseInt(document.getElementById('travelSpeed').value) || 1500,
+    toolTemp:  parseInt(document.getElementById('toolTemp').value) || 120,
+    surfTemp:  parseInt(document.getElementById('surfaceTemp').value) || 0,
+    hvV:       parseFloat(document.getElementById('hvVoltage').value) || 2,
+    surfOff:   parseFloat(document.getElementById('surfaceOffset').value) || 0,
+    extSteps:  parseInt(document.getElementById('extrusionSteps').value) || 400,
+    eVal:      parseFloat(document.getElementById('eValue').value) || 1,
+    useHV:     document.getElementById('useHV').checked,
+    useInfExtr:document.getElementById('useInfExtr').checked,
+    useWalls:  document.getElementById('useWalls').checked,
+    wallCount: parseInt(document.getElementById('wallCount').value) || 2,
+    wallSpacing: parseFloat(document.getElementById('wallSpacing').value) || 0.5,
+  };
+}
+
 function generateGcode() {
-  const lenX = parseFloat($('lenX').value);
-  const zPrint = parseFloat($('zPrint').value);
-  const zTravel = parseFloat($('zTravel').value);
-  const feed = parseFloat($('feed').value);
-  const ys = getYPositions();
-  const yMax = Math.max(...ys), yMin = Math.min(...ys);
-
-  const errs = [];
-  if (!(lenX > 0 && lenX <= 70)) errs.push(`Channel length ${lenX} out of range (0-70 mm)`);
-  if (!(zPrint >= 0 && zPrint < zTravel)) errs.push(`Z print height invalid`);
-  if (!(yMax <= 20 && yMin >= 0)) errs.push(`Y out of range (0-20 mm). Max=${yMax.toFixed(2)}`);
-  if (!state.zZeroSet) errs.push(`Z=0 reference not set yet`);
-
+  const p = getParams();
   const lines = [];
-  const pad = n => Number(n).toFixed(3).replace(/\.?0+$/, '') || '0';
 
-  lines.push('; ============================================');
-  lines.push('; Channel G-code Generator');
-  lines.push(`; Generated ${new Date().toISOString()}`);
-  lines.push(`; Channels: ${ys.length} | Length X: ${pad(lenX)} mm`);
-  lines.push(`; Print Z: ${pad(zPrint)} | Travel Z: ${pad(zTravel)} | F${feed}`);
-  lines.push(`; Y positions: ${ys.map(pad).join(', ')}`);
-  if (errs.length) {
-    lines.push(';');
-    lines.push('; WARNINGS:');
-    errs.forEach(e => lines.push(`;   - ${e}`));
+  const f = n => n.toFixed(3).replace(/\.?0+$/, '');
+
+  // Half-dims for centering
+  const hw = p.W / 2;
+  const hh = p.H / 2;
+
+  lines.push('; Generated by MEW Scaffold Generator');
+  lines.push('; Ozbolat Lab');
+  lines.push('; ----------------------------------------');
+  lines.push('');
+  lines.push('; === START G-CODE ===');
+  lines.push('');
+  lines.push(`; Surface offset: ${p.surfOff}mm`);
+  lines.push(`A120 T0 S${p.surfOff}                ; Surface offset T0`);
+  lines.push('');
+  lines.push('G28                              ; Home all axes');
+  lines.push(`G1 X${p.cx} Y${p.cy} F${p.travelSpeed}    ; Move to print origin`);
+  lines.push('T0                               ; Select Printhead 1');
+  lines.push('');
+  if (p.toolTemp > 0) {
+    lines.push('; Temperature settings');
+    lines.push(`M109 T0 S${p.toolTemp}                ; Set & wait printhead temp`);
   }
-  lines.push('; ============================================');
-  lines.push('G21');
-  lines.push('G90');
-  lines.push('G92 Z0');
-  lines.push(`G1 Z${pad(zTravel)} F${feed}`);
+  if (p.surfTemp > 0) {
+    lines.push(`M190 S${p.surfTemp}                    ; Set & wait surface temp`);
+  }
+  lines.push('');
+  lines.push(`; Extrusion settings`);
+  lines.push(`M92 E${p.extSteps}                      ; Extrusion steps/mm`);
+  lines.push('G21                              ; Units: mm');
+  lines.push('G90                              ; Absolute positioning');
+  lines.push('M83                              ; Relative extrusion');
+  lines.push('');
+  if (p.useHV) {
+    lines.push('; MEW high voltage');
+    lines.push(`A80 S${p.hvV} R1                       ; Set HVPS to ${p.hvV}kV and enable`);
+    lines.push('');
+  }
+  if (p.useInfExtr) {
+    lines.push('; Infinite extrusion (MEW mode)');
+    lines.push('A130 T0 S1                       ; Enable infinite extrusion T0');
+    lines.push('');
+  }
+  lines.push('G4 S1                            ; Wait 1 second');
+  lines.push(`G1 F${p.printSpeed}                    ; Set print speed`);
+  lines.push('');
+  lines.push('; === PRINT BODY ===');
   lines.push('');
 
-  ys.forEach((y, i) => {
-    lines.push(`; Channel ${i+1}/${ys.length} @ Y=${pad(y)}`);
-    lines.push(`G1 X0 Y${pad(y)} F${feed}`);
-    lines.push(`G1 Z${pad(zPrint)} F${feed}`);
-    lines.push(`G1 X${pad(lenX)} F${feed}`);
-    lines.push(`G1 Z${pad(zTravel)} F${feed}`);
-    if (i < ys.length - 1) lines.push(`G1 X0 F${feed}`);
-    lines.push('');
-  });
+  // For each layer
+  for (let li = 0; li < layers.length; li++) {
+    const angle = layers[li].angle;
+    const z = p.lh * (li + 1);
 
-  lines.push('; Done');
-  lines.push(`G1 Z${pad(zTravel)} F${feed}`);
-  lines.push(`G1 X0 Y0 F${feed}`);
-  lines.push('M84');
+    lines.push(`; --- Layer ${li+1} | Angle: ${angle}° | Z: ${f(z)}mm ---`);
+    lines.push(`G1 Z${f(z)} F${p.travelSpeed}           ; Move to layer height`);
+    lines.push('');
+
+    // Perimeter walls (before infill)
+    if (p.useWalls && p.wallCount > 0) {
+      lines.push(`; Walls (${p.wallCount}x, spacing ${p.wallSpacing}mm)`);
+      const walls = generateWallPaths(p.cx, p.cy, p.W, p.H, p.wallCount, p.wallSpacing);
+      for (let wi = 0; wi < walls.length; wi++) {
+        const wall = walls[wi];
+        lines.push(`G1 X${f(wall[0].x)} Y${f(wall[0].y)} F${p.travelSpeed} ; wall ${wi+1} travel`);
+        for (let wp = 1; wp < wall.length; wp++) {
+          if (p.useInfExtr) {
+            lines.push(`G1 X${f(wall[wp].x)} Y${f(wall[wp].y)} F${p.printSpeed}     ; wall ${wi+1} seg ${wp}`);
+          } else {
+            lines.push(`G1 X${f(wall[wp].x)} Y${f(wall[wp].y)} E${p.eVal} F${p.printSpeed} ; wall ${wi+1} seg ${wp}`);
+          }
+        }
+      }
+      lines.push('');
+    }
+
+    // Generate fiber infill paths for this angle
+    const paths = generateFiberPaths(p.cx, p.cy, p.W, p.H, angle, p.spacing);
+
+    for (let pi = 0; pi < paths.length; pi++) {
+      const path = paths[pi];
+      if (path.length < 2) continue;
+      const start = path[0];
+      const end   = path[1];
+      lines.push(`G1 X${f(start.x)} Y${f(start.y)} F${p.travelSpeed} ; travel`);
+      if (p.useInfExtr) {
+        lines.push(`G1 X${f(end.x)} Y${f(end.y)} F${p.printSpeed}     ; fiber ${pi+1}`);
+      } else {
+        lines.push(`G1 X${f(end.x)} Y${f(end.y)} E${p.eVal} F${p.printSpeed} ; fiber ${pi+1}`);
+      }
+    }
+    lines.push('');
+  }
+
+  lines.push('; === END G-CODE ===');
+  lines.push('');
+  lines.push('G4 S1                            ; Wait 1 second');
+  if (p.useHV) {
+    lines.push('A80 S0 R0                        ; Disable HVPS');
+  }
+  if (p.useInfExtr) {
+    lines.push('A130 T0 S0                       ; Disable infinite extrusion');
+  }
+  if (p.toolTemp > 0) {
+    lines.push('M104 T0 S0                       ; Printhead temp off');
+  }
+  if (p.surfTemp > 0) {
+    lines.push('M140 S0                          ; Surface temp off');
+  }
+  lines.push('G28                              ; Home all axes');
 
   return lines.join('\n');
 }
 
-// SERIAL
-const hasSerial = 'serial' in navigator;
-if (!hasSerial) $('browserWarn').classList.add('show');
+// Generate evenly-spaced parallel fiber lines for a given infill angle.
+//
+// Correct approach: find the two box edges that are "entry" edges for lines
+// at this angle (the edges a line first crosses when coming from outside),
+// then seed one fiber start point per spacing-step along those entry edges.
+// Each fiber goes from its start point in the fiber direction until it hits
+// the opposite wall. This guarantees:
+//   - All lines are truly parallel and equally spaced (spacing measured
+//     perpendicularly between lines)
+//   - Every line starts and ends exactly on the box boundary — no short ends
+//   - Lines fully cover corners with no gaps
+//
+function generateFiberPaths(cx, cy, W, H, angleDeg, spacing) {
+  const paths = [];
+  const hw = W / 2, hh = H / 2;
+  const minX = cx - hw, maxX = cx + hw;
+  const minY = cy - hh, maxY = cy + hh;
 
-function logLine(text, cls='sys') {
-  const el = $('console');
-  const d = document.createElement('div');
-  d.className = 'ln ' + cls;
-  d.textContent = text;
-  el.appendChild(d);
-  el.scrollTop = el.scrollHeight;
-  while (el.children.length > 400) el.removeChild(el.firstChild);
+  // Normalise angle to [0, 180) — lines at 0° and 180° are identical
+  let a = ((angleDeg % 360) + 360) % 360;
+  if (a >= 180) a -= 180;
+  const rad = a * Math.PI / 180;
+
+  const dx = Math.cos(rad);   // fiber direction
+  const dy = Math.sin(rad);
+  const px = -dy;             // perpendicular (sweep) direction  (-sin, cos)
+  const py =  dx;
+
+  // Project all 4 corners onto the perpendicular axis so we know the full
+  // sweep range.
+  const corners = [
+    [minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]
+  ];
+  const perps = corners.map(([x, y]) => (x - cx) * px + (y - cy) * py);
+  const pMin = Math.min(...perps);
+  const pMax = Math.max(...perps);
+
+  // Snap the first seed to the nearest multiple of `spacing` that is <= pMin,
+  // so the grid is aligned consistently regardless of box size.
+  const firstT = Math.floor(pMin / spacing) * spacing;
+  const lastT  = Math.ceil (pMax / spacing) * spacing;
+
+  // Half-length along fiber direction that safely spans the entire box
+  const fiberLen = Math.sqrt(W * W + H * H) + 2;
+
+  for (let t = firstT; t <= lastT + 1e-9; t += spacing) {
+    // Point on the perpendicular axis at parameter t
+    const ox = cx + px * t;
+    const oy = cy + py * t;
+
+    // Extend line in both fiber directions
+    const sx = ox - dx * fiberLen;
+    const sy = oy - dy * fiberLen;
+    const ex = ox + dx * fiberLen;
+    const ey = oy + dy * fiberLen;
+
+    const clipped = clipLineToBox(sx, sy, ex, ey, minX, minY, maxX, maxY);
+    if (clipped) {
+      paths.push([
+        { x: clipped[0], y: clipped[1] },
+        { x: clipped[2], y: clipped[3] }
+      ]);
+    }
+  }
+  return paths;
 }
 
-async function connect() {
-  if (!hasSerial) {
-    logLine('Browser does not support direct printer connection. Use Chrome or Edge.', 'sys');
-    return;
+// Generate perimeter wall rectangles (as 4-segment paths) inset by `offset`
+// Returns array of 4 corner points (closed loop) for each wall
+function generateWallPaths(cx, cy, W, H, wallCount, wallSpacing) {
+  const walls = [];
+  for (let w = 0; w < wallCount; w++) {
+    const inset = wallSpacing * w + wallSpacing / 2;
+    const ww = W - inset * 2;
+    const wh = H - inset * 2;
+    if (ww <= 0 || wh <= 0) break;
+    const x0 = cx - ww / 2, y0 = cy - wh / 2;
+    const x1 = cx + ww / 2, y1 = cy + wh / 2;
+    // CCW rectangle: BL -> BR -> TR -> TL -> BL
+    walls.push([
+      {x: x0, y: y0},
+      {x: x1, y: y0},
+      {x: x1, y: y1},
+      {x: x0, y: y1},
+      {x: x0, y: y0},
+    ]);
   }
-  try {
-    const port = await navigator.serial.requestPort();
-    const baud = parseInt($('baudSel').value);
-    await port.open({ baudRate: baud });
-    state.port = port;
-    state.connected = true;
+  return walls;
+}
 
-    const textEncoder = new TextEncoderStream();
-    state._writableClosed = textEncoder.readable.pipeTo(port.writable);
-    state.writer = textEncoder.writable.getWriter();
-
-    const textDecoder = new TextDecoderStream();
-    state._readableClosed = port.readable.pipeTo(textDecoder.writable);
-    state.reader = textDecoder.readable.getReader();
-
-    setConnState(true);
-    logLine(`Connected at ${baud} baud`, 'sys');
-    readLoop();
-  } catch (e) {
-    logLine('Connect error: ' + e.message, 'sys');
-    setConnState(false, true);
+// Cohen-Sutherland line clipping
+function clipLineToBox(x0, y0, x1, y1, minX, minY, maxX, maxY) {
+  const INSIDE=0,LEFT=1,RIGHT=2,BOTTOM=4,TOP=8;
+  function code(x,y){
+    let c=INSIDE;
+    if(x<minX)c|=LEFT; else if(x>maxX)c|=RIGHT;
+    if(y<minY)c|=BOTTOM; else if(y>maxY)c|=TOP;
+    return c;
+  }
+  let c0=code(x0,y0), c1=code(x1,y1);
+  while(true){
+    if(!(c0|c1)) return [x0,y0,x1,y1];
+    if(c0&c1) return null;
+    const co=c0||c1;
+    let x,y;
+    if(co&TOP){x=x0+(x1-x0)*(maxY-y0)/(y1-y0);y=maxY;}
+    else if(co&BOTTOM){x=x0+(x1-x0)*(minY-y0)/(y1-y0);y=minY;}
+    else if(co&RIGHT){y=y0+(y1-y0)*(maxX-x0)/(x1-x0);x=maxX;}
+    else{y=y0+(y1-y0)*(minX-x0)/(x1-x0);x=minX;}
+    if(co===c0){x0=x;y0=y;c0=code(x0,y0);}
+    else{x1=x;y1=y;c1=code(x1,y1);}
   }
 }
 
-async function readLoop() {
-  try {
-    while (state.connected && state.reader) {
-      const { value, done } = await state.reader.read();
-      if (done) break;
-      if (value) {
-        state.rxBuf += value;
-        let nl;
-        while ((nl = state.rxBuf.indexOf('\n')) >= 0) {
-          const line = state.rxBuf.slice(0, nl).replace(/\r$/, '');
-          state.rxBuf = state.rxBuf.slice(nl + 1);
-          if (line.length) handleRxLine(line);
+// =============================================
+// VIZ
+// =============================================
+let vizGeometry = []; // [{layerIndex, paths:[{sx,sy,ex,ey}]}]
+
+function buildVizGeometry() {
+  const p = getParams();
+  vizGeometry = [];
+  for (let li = 0; li < layers.length; li++) {
+    const angle = layers[li].angle;
+    const paths = generateFiberPaths(p.cx, p.cy, p.W, p.H, angle, p.spacing);
+    const walls = (p.useWalls && p.wallCount > 0)
+      ? generateWallPaths(p.cx, p.cy, p.W, p.H, p.wallCount, p.wallSpacing)
+      : [];
+    vizGeometry.push({ layerIndex: li, angle, paths, walls });
+  }
+}
+
+function drawViz() {
+  const canvas = document.getElementById('vizCanvas');
+  const parent = canvas.parentElement;
+  canvas.width = parent.clientWidth;
+  canvas.height = parent.clientHeight;
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const p = getParams();
+
+  // Transform: world mm -> canvas px
+  // Auto-fit: figure base scale from box size
+  const margin = 60;
+  const availW = canvas.width - margin*2;
+  const availH = canvas.height - margin*2;
+  const baseScale = Math.min(availW / p.W, availH / p.H) * 0.8;
+  const scale = baseScale * vizScale;
+
+  // Center of canvas + pan
+  const cx = canvas.width/2 + vizOffX;
+  const cy = canvas.height/2 + vizOffY;
+
+  function wx(worldX) { return cx + (worldX - p.cx) * scale; }
+  function wy(worldY) { return cy - (worldY - p.cy) * scale; } // flip Y
+
+  // Draw scaffold bounding box
+  const boxX = wx(p.cx - p.W/2);
+  const boxY = wy(p.cy + p.H/2);
+  const boxW = p.W * scale;
+  const boxH = p.H * scale;
+
+  ctx.strokeStyle = 'rgba(0,102,204,0.2)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+  ctx.setLineDash([]);
+
+  // Draw origin cross
+  ctx.strokeStyle = 'rgba(0,102,204,0.12)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(wx(p.cx), wy(p.cy - p.H/2 - 5));
+  ctx.lineTo(wx(p.cx), wy(p.cy + p.H/2 + 5));
+  ctx.moveTo(wx(p.cx - p.W/2 - 5), wy(p.cy));
+  ctx.lineTo(wx(p.cx + p.W/2 + 5), wy(p.cy));
+  ctx.stroke();
+
+  // Dimension labels
+  ctx.fillStyle = 'rgba(107,114,128,0.9)';
+  ctx.font = `${Math.max(9, 11 * vizScale)}px Space Mono, monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${p.W}mm`, cx, boxY - 6);
+  ctx.save();
+  ctx.translate(boxX - 8, cy);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText(`${p.H}mm`, 0, 0);
+  ctx.restore();
+
+  // Draw fibers and walls
+  const layersToShow = vizMode === 'single' ? [vizGeometry[vizGeometry.length-1]].filter(Boolean) : vizGeometry;
+
+  for (const layer of layersToShow) {
+    if (!layer) continue;
+    const color = LAYER_COLORS[layer.layerIndex % LAYER_COLORS.length];
+    const alpha = vizMode === 'all' ? 0.55 : 0.9;
+    const lw = vizMode === 'all' ? Math.max(0.5, 1.5 * vizScale) : Math.max(1, 2 * vizScale);
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.globalAlpha = alpha;
+
+    // Infill fibers
+    for (const path of layer.paths) {
+      ctx.beginPath();
+      ctx.moveTo(wx(path[0].x), wy(path[0].y));
+      ctx.lineTo(wx(path[1].x), wy(path[1].y));
+      ctx.stroke();
+    }
+
+    // Perimeter walls (slightly thicker, same color)
+    if (layer.walls && layer.walls.length > 0) {
+      ctx.lineWidth = lw * 1.6;
+      ctx.globalAlpha = Math.min(1, alpha * 1.3);
+      for (const wall of layer.walls) {
+        ctx.beginPath();
+        ctx.moveTo(wx(wall[0].x), wy(wall[0].y));
+        for (let wi = 1; wi < wall.length; wi++) {
+          ctx.lineTo(wx(wall[wi].x), wy(wall[wi].y));
         }
+        ctx.stroke();
       }
     }
-  } catch (e) {
-    if (state.connected) logLine('Read error: ' + e.message, 'sys');
   }
+  ctx.globalAlpha = 1;
+
+  // Update legend
+  const legend = document.getElementById('vizLegend');
+  legend.innerHTML = vizGeometry.map((l, i) => {
+    const color = LAYER_COLORS[i % LAYER_COLORS.length];
+    const shown = vizMode === 'all' || i === vizGeometry.length - 1;
+    return `<div class="legend-item" style="opacity:${shown?1:0.3}">
+      <span class="legend-dot" style="background:${color}"></span>
+      L${i+1} ${l.angle}°
+    </div>`;
+  }).join('');
+
+  // Update info
+  document.getElementById('vizInfo').textContent =
+    `${p.W}×${p.H}mm · ${layers.length} layers · ${(layers.length * p.lh).toFixed(2)}mm height`;
 }
 
-function handleRxLine(line) {
-  logLine(line, 'rx');
-  const m = line.match(/X:(-?\d+\.?\d*)\s+Y:(-?\d+\.?\d*)\s+Z:(-?\d+\.?\d*)/i);
-  if (m) {
-    state.pos.X = parseFloat(m[1]);
-    state.pos.Y = parseFloat(m[2]);
-    state.pos.Z = parseFloat(m[3]);
-    $('posX').textContent = state.pos.X.toFixed(2);
-    $('posY').textContent = state.pos.Y.toFixed(2);
-    $('posZ').textContent = state.pos.Z.toFixed(2);
+function setVizMode(mode) {
+  vizMode = mode;
+  document.getElementById('btnAllLayers').classList.toggle('active', mode==='all');
+  document.getElementById('btnOneLayer').classList.toggle('active', mode==='single');
+  drawViz();
+}
+
+function vizZoom(factor) {
+  vizScale = Math.min(20, Math.max(0.1, vizScale * factor));
+  drawViz();
+}
+
+function vizResetView() {
+  vizScale = 1; vizOffX = 0; vizOffY = 0;
+  drawViz();
+}
+
+// Canvas pan
+const canvas = document.getElementById('vizCanvas');
+canvas.addEventListener('mousedown', e => {
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  vizOffXStart = vizOffX;
+  vizOffYStart = vizOffY;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  vizOffX = vizOffXStart + (e.clientX - dragStartX);
+  vizOffY = vizOffYStart + (e.clientY - dragStartY);
+  drawViz();
+});
+canvas.addEventListener('mouseup', () => { isDragging = false; });
+canvas.addEventListener('mouseleave', () => { isDragging = false; });
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  vizZoom(e.deltaY < 0 ? 1.1 : 0.9);
+}, { passive: false });
+
+// Touch support
+let lastTouchDist = 0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    dragStartX = e.touches[0].clientX;
+    dragStartY = e.touches[0].clientY;
+    vizOffXStart = vizOffX;
+    vizOffYStart = vizOffY;
+  } else if (e.touches.length === 2) {
+    lastTouchDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
   }
-  const lo = line.toLowerCase().trim();
-  if (lo === 'ok' || lo.startsWith('ok ') || lo.startsWith('ok\t')) {
-    if (state.awaitingOk) {
-      state.awaitingOk = false;
-      if (state.streaming) sendNextStreamLine();
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && isDragging) {
+    vizOffX = vizOffXStart + (e.touches[0].clientX - dragStartX);
+    vizOffY = vizOffYStart + (e.touches[0].clientY - dragStartY);
+    drawViz();
+  } else if (e.touches.length === 2) {
+    const dist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    vizZoom(dist / lastTouchDist);
+    lastTouchDist = dist;
+  }
+}, { passive: true });
+canvas.addEventListener('touchend', () => { isDragging = false; });
+
+// =============================================
+// GCODE SYNTAX HIGHLIGHTING (simple)
+// =============================================
+function highlightGcode(raw) {
+  return raw.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith(';')) {
+      return `<span class="gc-comment">${escHtml(line)}</span>`;
     }
-  }
-}
-
-async function disconnect() {
-  state.connected = false;
-  state.streaming = false;
-  $('runner').style.display = 'none';
-  try {
-    if (state.reader) {
-      try { await state.reader.cancel(); } catch {}
-      try { state.reader.releaseLock(); } catch {}
+    const cmd = trimmed.split(/\s/)[0];
+    if (['G1','G2','G3','G28','G90','G91','G92','G21','G4'].includes(cmd)) {
+      return `<span class="gc-movement">${escHtml(line)}</span>`;
     }
-    if (state.writer) {
-      try { await state.writer.close(); } catch {}
+    if (['M104','M109','M140','M190'].includes(cmd)) {
+      return `<span class="gc-temp">${escHtml(line)}</span>`;
     }
-    if (state.port) {
-      try { await state.port.close(); } catch {}
+    if (cmd.startsWith('A') && /^A\d+/.test(cmd)) {
+      return `<span class="gc-axo">${escHtml(line)}</span>`;
     }
-  } catch (e) {
-    logLine('Disconnect error: ' + e.message, 'sys');
-  }
-  state.port = null;
-  state.reader = null;
-  state.writer = null;
-  setConnState(false);
-  logLine('Disconnected', 'sys');
-}
-
-function setConnState(on, err=false) {
-  $('led').className = 'conn-led' + (on ? ' on' : '') + (err ? ' err' : '');
-  $('connState').textContent = on ? 'Connected' : (err ? 'Connection error' : 'Not connected');
-  $('connectBtn').disabled = on;
-  $('disconnectBtn').disabled = !on;
-  $('cmdInput').disabled = !on;
-  $('sendCmdBtn').disabled = !on;
-  $('runBtn').disabled = !on;
-  $('jogStatus').textContent = on ? 'Ready' : 'Offline';
-  $('jogStatus').className = 'pill ' + (on ? 'good' : 'dim');
-  document.querySelectorAll('.jog-btn').forEach(b => b.disabled = !on);
-  document.querySelectorAll('[data-action]').forEach(b => b.disabled = !on);
-  document.querySelectorAll('.prog-btn:not(.prog-add)').forEach(b => b.disabled = !on);
-}
-
-async function sendRaw(text) {
-  if (!state.writer || !state.connected) return;
-  try { await state.writer.write(text); }
-  catch (e) { logLine('Write error: ' + e.message, 'sys'); }
-}
-
-async function sendLine(line) {
-  if (!state.connected) { logLine('(not connected) ' + line, 'sys'); return; }
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith(';')) return;
-  logLine(trimmed, 'tx');
-  await sendRaw(trimmed + '\n');
-}
-
-// JOG
-$('stepRow').addEventListener('click', e => {
-  if (e.target.tagName !== 'BUTTON') return;
-  $('stepRow').querySelectorAll('button').forEach(b => b.classList.remove('active'));
-  e.target.classList.add('active');
-  state.jogStep = parseFloat(e.target.dataset.step);
-});
-
-document.querySelectorAll('.jog-btn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    if (!state.connected) return;
-    const axis = btn.dataset.axis;
-    const dir = parseInt(btn.dataset.dir);
-    const dist = state.jogStep * dir;
-    const f = parseInt($('jogFeed').value) || 1500;
-    await sendLine('G91');
-    await sendLine(`G1 ${axis}${dist} F${f}`);
-    await sendLine('G90');
-    await sendLine('M114');
-  });
-});
-
-document.querySelectorAll('[data-action]').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    if (!state.connected) return;
-    const a = btn.dataset.action;
-    if (a === 'homeXY') await sendLine('G28 X Y');
-    else if (a === 'homeZ') await sendLine('G28 Z');
-    else if (a === 'homeAll') await sendLine('G28');
-    else if (a === 'getPos') await sendLine('M114');
-    else if (a === 'motorsOff') await sendLine('M84');
-    else if (a === 'setOrigin') {
-      if (confirm('Set current X, Y, Z all to 0 (G92 X0 Y0 Z0)?')) {
-        await sendLine('G92 X0 Y0 Z0');
-        await sendLine('M114');
-      }
+    if (['T0','T1','T2','M83','M82','M92','M107'].includes(cmd)) {
+      return `<span class="gc-misc">${escHtml(line)}</span>`;
     }
-  });
-});
+    return escHtml(line);
+  }).join('\n');
+}
 
-// MACROS
-function renderProgButtons() {
-  const grid = $('progGrid');
-  grid.innerHTML = '';
-  state.progButtons.forEach((b, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'prog-btn';
-    btn.disabled = !state.connected;
-    btn.title = b.code;
-    btn.innerHTML = `${escapeHtml(b.label)}<span class="x" data-rm="${i}">×</span>`;
-    btn.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('x')) {
-        e.stopPropagation();
-        if (confirm('Delete "' + b.label + '"?')) {
-          state.progButtons.splice(i, 1);
-          saveProgButtons();
-          renderProgButtons();
-        }
-        return;
-      }
-      if (!state.connected) return;
-      const lines = b.code.split('\n');
-      for (const ln of lines) await sendLine(ln);
-    });
-    grid.appendChild(btn);
-  });
-  const add = document.createElement('button');
-  add.className = 'prog-btn prog-add';
-  add.textContent = '+ add macro';
-  add.addEventListener('click', () => openProgModal());
-  grid.appendChild(add);
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function saveProgButtons() {
-  localStorage.setItem('progButtons', JSON.stringify(state.progButtons));
-}
-function openProgModal(idx=null) {
-  state.editingProgIdx = idx;
-  if (idx !== null) {
-    $('modalTitle').textContent = 'Edit macro';
-    $('progLabel').value = state.progButtons[idx].label;
-    $('progCode').value = state.progButtons[idx].code;
-  } else {
-    $('modalTitle').textContent = 'New macro';
-    $('progLabel').value = '';
-    $('progCode').value = '';
-  }
-  $('progModal').classList.add('show');
-}
-$('progCancel').addEventListener('click', () => $('progModal').classList.remove('show'));
-$('progSave').addEventListener('click', () => {
-  const label = $('progLabel').value.trim();
-  const code = $('progCode').value.trim();
-  if (!label || !code) return;
-  if (state.editingProgIdx !== null) {
-    state.progButtons[state.editingProgIdx] = { label, code };
-  } else {
-    state.progButtons.push({ label, code });
-  }
-  saveProgButtons();
-  renderProgButtons();
-  $('progModal').classList.remove('show');
-});
 
-// STREAMING
-async function sendNextStreamLine() {
-  if (!state.streaming) return;
-  while (state.streamIdx < state.streamLines.length) {
-    const raw = state.streamLines[state.streamIdx];
-    const trimmed = raw.trim();
-    state.streamIdx++;
-    updateProgress();
-    if (!trimmed || trimmed.startsWith(';')) continue;
-    const semi = trimmed.indexOf(';');
-    const cmd = (semi >= 0 ? trimmed.slice(0, semi) : trimmed).trim();
-    if (!cmd) continue;
-    logLine(cmd, 'tx');
-    state.awaitingOk = true;
-    await sendRaw(cmd + '\n');
-    return;
-  }
-  state.streaming = false;
-  state.awaitingOk = false;
-  $('runnerLabel').textContent = 'Done';
-  setTimeout(() => $('runner').style.display = 'none', 2500);
+// =============================================
+// STATS
+// =============================================
+function updateStats(gcode) {
+  const p = getParams();
+  const lines = gcode.split('\n');
+  const totalLines = lines.length;
+  const numLayers = layers.length;
+  const totalHeight = (numLayers * p.lh).toFixed(2);
+
+  // Estimate fibers per layer
+  const diag = Math.sqrt(p.W*p.W + p.H*p.H);
+  const fibersPerLayer = Math.ceil(Math.max(p.W, p.H) / p.spacing);
+
+  document.getElementById('statLines').textContent = totalLines;
+  document.getElementById('statLayers').textContent = numLayers;
+  document.getElementById('statFibers').textContent = `~${fibersPerLayer}`;
+  document.getElementById('statHeight').textContent = totalHeight;
 }
-function updateProgress() {
-  const total = state.streamLines.length;
-  const done = state.streamIdx;
-  const pct = total ? Math.round(done/total*100) : 0;
-  $('progFill').style.width = pct + '%';
-  $('progLines').textContent = `${done} / ${total} lines`;
-  $('progPct').textContent = pct + '%';
+
+function updateSummary() {
+  const p = getParams();
+  const lines = [
+    'SCAFFOLD SUMMARY',
+    '================',
+    '',
+    `Dimensions:     ${p.W} x ${p.H} mm`,
+    `Fiber spacing:  ${p.spacing} mm`,
+    `Layer height:   ${p.lh} mm`,
+    `Num layers:     ${layers.length}`,
+    `Total height:   ${(layers.length * p.lh).toFixed(3)} mm`,
+    `Print origin:   (${p.cx}, ${p.cy}) mm`,
+    '',
+    'LAYER ANGLES',
+    '------------',
+    ...layers.map((l,i) => `  Layer ${i+1}:  ${l.angle}°`),
+    '',
+    '',
+    'PERIMETER WALLS',
+    '----------------',
+    ...(() => {
+      if (!p.useWalls) return ['  Disabled'];
+      return [
+        `  Wall count:  ${p.wallCount}`,
+        `  Spacing:     ${p.wallSpacing} mm`,
+        `  Total inset: ${(p.wallCount * p.wallSpacing).toFixed(2)} mm`,
+      ];
+    })(),
+    '',
+    'PRINTER SETTINGS',
+    '----------------',
+    `Print speed:    ${p.printSpeed} mm/min (${(p.printSpeed/60).toFixed(1)} mm/s)`,
+    `Travel speed:   ${p.travelSpeed} mm/min`,
+    `Tool temp:      ${p.toolTemp}°C`,
+    `Surface temp:   ${p.surfTemp}°C`,
+    '',
+    'MEW SETTINGS',
+    '------------',
+    `High voltage:   ${p.useHV ? p.hvV + ' kV' : 'disabled'}`,
+    `Inf. extrusion: ${p.useInfExtr ? 'enabled' : 'disabled'}`,
+    `Surface offset: ${p.surfOff} mm`,
+    `Extru. steps:   ${p.extSteps} steps/mm`,
+  ];
+  document.getElementById('summaryText').textContent = lines.join('\n');
 }
-$('runBtn').addEventListener('click', async () => {
-  if (!state.connected) return;
-  const text = $('gcode').value || generateGcode();
-  $('gcode').value = text;
-  if (!confirm('Send this G-code to the printer now?')) return;
-  state.streamLines = text.split('\n');
-  state.streamIdx = 0;
-  state.streaming = true;
-  $('runner').style.display = 'block';
-  $('runnerLabel').textContent = 'Streaming…';
-  updateProgress();
-  sendNextStreamLine();
-});
-$('stopBtn').addEventListener('click', async () => {
-  state.streaming = false;
-  state.awaitingOk = false;
-  $('runnerLabel').textContent = 'Stopped';
-  await sendLine('G91');
-  await sendLine('G1 Z5 F1500');
-  await sendLine('G90');
-});
 
-// MAIN HANDLERS
-$('connectBtn').addEventListener('click', connect);
-$('disconnectBtn').addEventListener('click', disconnect);
-$('sendCmdBtn').addEventListener('click', () => {
-  const v = $('cmdInput').value.trim();
-  if (v) { sendLine(v); $('cmdInput').value = ''; }
-});
-$('cmdInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') $('sendCmdBtn').click();
-});
-$('clearLog').addEventListener('click', () => $('console').innerHTML = '');
+// =============================================
+// WALL OPTIONS TOGGLE
+// =============================================
+function toggleWallOptions() {
+  const checked = document.getElementById('useWalls').checked;
+  document.getElementById('wallOptions').style.display = checked ? 'block' : 'none';
+}
 
-$('zeroBtn').addEventListener('click', async () => {
-  state.zZeroSet = true;
-  $('zeroBtn').classList.add('active');
-  $('zeroBtn').textContent = '✓ Z = 0 captured (click to re-arm)';
-  $('zeroState').classList.add('show');
-  if (state.connected) {
-    if (confirm('Also send G92 Z0 to the printer right now?')) {
-      await sendLine('G92 Z0');
-      await sendLine('M114');
-    }
-  }
-});
+// =============================================
+// MAIN UPDATE
+// =============================================
+function update() {
+  currentGcode = generateGcode();
+  document.getElementById('gcodeText').innerHTML = highlightGcode(currentGcode);
+  buildVizGeometry();
+  drawViz();
+  updateStats(currentGcode);
+  updateSummary();
+}
 
-$('generateBtn').addEventListener('click', () => { $('gcode').value = generateGcode(); });
-$('copyBtn').addEventListener('click', async () => {
-  const text = $('gcode').value || generateGcode();
-  $('gcode').value = text;
-  try {
-    await navigator.clipboard.writeText(text);
-    $('copyBtn').textContent = 'Copied ✓';
-    setTimeout(()=> $('copyBtn').textContent = 'Copy', 1200);
-  } catch {
-    $('gcode').select();
-    document.execCommand('copy');
-  }
-});
-$('downloadBtn').addEventListener('click', () => {
-  const text = $('gcode').value || generateGcode();
-  const blob = new Blob([text], {type:'text/plain'});
+// =============================================
+// DOWNLOAD
+// =============================================
+function downloadGcode() {
+  const blob = new Blob([currentGcode], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `channels_${Date.now()}.gcode`; a.click();
+  a.href = url;
+  a.download = `scaffold_${document.getElementById('scaffoldW').value}x${document.getElementById('scaffoldH').value}mm_${layers.length}layers.gcode`;
+  a.click();
   URL.revokeObjectURL(url);
-});
-
-['lenX','zPrint','zTravel','feed','startY'].forEach(id => {
-  $(id).addEventListener('input', updateAll);
-});
-
-// Resize handler with debounce + ResizeObserver for reliable canvas sizing
-let resizeTimer;
-function scheduleRedraw() {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(drawPreview, 60);
 }
-window.addEventListener('resize', scheduleRedraw);
 
-function updateAll() { updateStats(); drawPreview(); }
+// =============================================
+// TABS
+// =============================================
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const tabs = ['gcode','summary'];
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(tc => {
+    tc.classList.toggle('active', tc.id === `tab-${name}`);
+  });
+}
 
+// =============================================
+// RESIZE HANDLER
+// =============================================
+window.addEventListener('resize', () => drawViz());
+
+// =============================================
 // INIT
-renderChannels();
-renderProgButtons();
-updateStats();
-$('gcode').value = generateGcode();
-setConnState(false);
-logLine('Channel G-code Generator ready. Plug in printer and press Connect Printer (default 9600 baud).', 'sys');
-if (!hasSerial) logLine('Browser does not support direct connection. Use Chrome or Edge.', 'sys');
-
-// Use ResizeObserver on the preview wrapper so canvas always matches its container
-const previewWrap = document.querySelector('.preview-wrap');
-if (previewWrap && 'ResizeObserver' in window) {
-  const ro = new ResizeObserver(() => scheduleRedraw());
-  ro.observe(previewWrap);
-}
-
-// Trigger initial draw after DOM has fully laid out
-window.addEventListener('load', () => {
-  requestAnimationFrame(() => requestAnimationFrame(drawPreview));
-});
-// Also a fallback
-setTimeout(drawPreview, 100);
-setTimeout(drawPreview, 300);
+// =============================================
+renderLayerList();
+update();
 </script>
-
 </body>
 </html>
